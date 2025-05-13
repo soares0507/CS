@@ -7,7 +7,9 @@ CREATE TABLE Cliente (
     cpf VARCHAR(14) UNIQUE,
     senha VARCHAR(255),
     premium BOOLEAN DEFAULT FALSE,
-    data_criacao DATETIME DEFAULT CURRENT_TIMESTAMP
+    data_criacao DATETIME DEFAULT CURRENT_TIMESTAMP,
+    telefone VARCHAR(50),
+    data_nascimento DATETIME;
 );
 
 CREATE TABLE Vendedor (
@@ -15,7 +17,10 @@ CREATE TABLE Vendedor (
     nome VARCHAR(100),
     email VARCHAR(100) UNIQUE,
     senha VARCHAR(255),
-    data_criacao DATETIME DEFAULT CURRENT_TIMESTAMP
+    data_criacao DATETIME DEFAULT CURRENT_TIMESTAMP,
+    cpf VARCHAR(50),
+    telefone VARCHAR(50),
+    data_nascimento DATETIME;
 );
 
 CREATE TABLE Produto (
