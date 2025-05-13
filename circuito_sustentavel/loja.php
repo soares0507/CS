@@ -78,7 +78,7 @@ if (isset($_SESSION['usuario_id'])) {
 
     .search-bar img.lupa {
       position: absolute;
-      right: 16%;
+      right: 14%;
       top: 50%;
       transform: translateY(-50%);
       height: 20px;
@@ -120,7 +120,7 @@ if (isset($_SESSION['usuario_id'])) {
     .icons img {
       height: 40px; /* Reduz o tamanho das imagens */
       width: auto; /* Mantém a proporção */
-      margin-left: -113px; /* Move os ícones 10px para a esquerda */
+      margin-left: -119px; /* Move os ícones 10px para a esquerda */
       
     }
 
@@ -189,9 +189,11 @@ if (isset($_SESSION['usuario_id'])) {
     .user-info img {
       height: 50px; 
       width: auto; 
-      margin-left: -127px; 
+      margin-left: -139px; 
       margin-top: -13px;
     }
+
+  
 
     .category-list {
       display: none;
@@ -276,6 +278,8 @@ if (isset($_SESSION['usuario_id'])) {
       background: rgba(0, 0, 0, 0.5);
       z-index: 999;
     }
+
+    
   </style>
   <script>
     function toggleCategoryList() {
@@ -339,11 +343,12 @@ if (isset($_SESSION['usuario_id'])) {
       <?php endif; ?>
       <div class="icons">
         <a href="c+.php">
-          <img src="img/C+.png" alt="C+" />
+          <img src="img/C+.png" alt="">
         </a>
         <a href="carrinho.php">
-          <img src="img/carrinho.png" alt="Carrinho de Compras" />
+          <img src="img/carrinho.png" alt="">
         </a>
+        
       </div>
     </div>
   </header>
