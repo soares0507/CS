@@ -275,6 +275,52 @@ footer .rodape {
   color: #d43131;
   margin-bottom: 10px;
 }
+
+.footer-novo {
+  background: #1b2430;
+  color: #fff;
+  padding: 2.5rem 1rem 1rem 1rem;
+  margin-top: 10rem;
+}
+.footer-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2rem;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.footer-col {
+  min-width: 180px;
+  flex: 1;
+}
+.footer-col h4 {
+  margin-bottom: 1rem;
+  color:rgb(255, 255, 255);
+}
+.footer-col a {
+  color: #cfd8dc;
+  text-decoration: none;
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+  transition: color 0.2s;
+}
+.footer-col a:hover {
+  color: #28a060;
+}
+.footer-bottom {
+  text-align: center;
+  color: #aaa;
+  font-size: 0.95rem;
+  margin-top: 2rem;
+  border-top: 1px solid #333;
+  padding-top: 1rem;
+}
+footer p {
+ color:rgb(156, 163, 175);
+;
+}
 </style>
   <script>
     function abrirModalExcluir() {
@@ -343,8 +389,8 @@ footer .rodape {
       </div>
 
       <div class="box">
-        <h2> Meus dados <a href="#" class="editar">Editar</a></h2>
         <img src="img/user.png" alt="">
+        <h2> Meus dados <a href="#" class="editar">Editar</a></h2>
         <p>🧍 <?= htmlspecialchars($vendedor['nome']) ?></p>
         <p>✉️ <?= htmlspecialchars($vendedor['email']) ?></p>
         <form method="post" style="display:inline;">
@@ -383,5 +429,22 @@ footer .rodape {
       abrirModalExcluir();
     <?php endif; ?>
   </script>
+  <footer class="footer-novo">
+    <div class="footer-container">
+      <div class="footer-col">
+        <h4>Circuito Sustentável</h4>
+        <p>Oferecendo solução para o meio ambiente e seu bolso.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Contato</h4>
+        <p>📧 circuito_sustentavel@gmail.com</p>
+        <p>📞 (85) 992933310</p>
+      </div>
+     
+    </div>
+    <div class="footer-bottom">
+      &copy; 2025 Circuito Sustentável Inc. Todos os direitos reservados.
+    </div>
+  </footer>
 </body>
 </html>
