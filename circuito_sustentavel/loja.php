@@ -84,6 +84,7 @@ if (isset($_SESSION['usuario_id'])) {
       background: #f3f2e7;
       border-radius: 20px;
       font-size: 1rem;
+      margin-left: 269px;
     }
 
     .search-bar img.lupa {
@@ -422,8 +423,12 @@ footer p {
     </div>
 
     <div class="search-bar">
-      <input type="text" placeholder="" />
-      <img src="img/lupa.png" alt="Pesquisar" class="lupa" />
+      <form method="get" action="loja.php" style="width:100%;">
+        <input type="text" name="busca" placeholder="Pesquisar produtos..." value="<?= isset($_GET['busca']) ? htmlspecialchars($_GET['busca']) : '' ?>" />
+        <button type="submit" style="position:absolute;right:14%;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;">
+          <img src="img/lupa.png" alt="Pesquisar" class="lupa" />
+        </button>
+      </form>
     </div>
 
     <div class="auth-section">
@@ -460,7 +465,13 @@ footer p {
       <div class="items">
         <?php
         // Buscar produtos do banco
-        $sql_prod = "SELECT * FROM Produto";
+        $busca = isset($_GET['busca']) ? trim($_GET['busca']) : '';
+        if ($busca !== '') {
+          $busca_sql = $conexao->real_escape_string($busca);
+          $sql_prod = "SELECT * FROM Produto WHERE nome LIKE '%$busca_sql%' OR descricao LIKE '%$busca_sql%'";
+        } else {
+          $sql_prod = "SELECT * FROM Produto";
+        }
         $res_prod = $conexao->query($sql_prod);
         if ($res_prod && $res_prod->num_rows > 0):
           while ($prod = $res_prod->fetch_assoc()):
@@ -481,7 +492,9 @@ footer p {
             <div class="item-preco">R$ <?= number_format($prod['preco'],2,',','.') ?></div>
             <div class="item-desc"><?= htmlspecialchars(mb_strimwidth($prod['descricao'],0,60,'...')) ?></div>
             <div class="item-btn-area">
-              <button class="item-btn-ver">Ver</button>
+              <a href="aba_produto.php?id=<?= $prod['id_produto'] ?>">
+                <button class="item-btn-ver">Ver</button>
+              </a>
             </div>
           </div>
         </div>

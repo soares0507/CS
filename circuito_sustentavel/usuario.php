@@ -406,7 +406,7 @@ footer p {
 
       <div class="box">
         <img src="img/user.png" alt="">
-        <h2 class="hi"> Meus dados <a href="#" class="editar">Editar</a></h2>
+        <h2 class="hi"> Meus dados <a href="dados.php" class="editar">Editar</a></h2>
         <p>🧍 <?= htmlspecialchars($usuario['nome']) ?></p>
         <p>✉️ <?= htmlspecialchars($usuario['email']) ?></p>
         <form method="post" style="display:inline;">

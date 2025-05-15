@@ -1,37 +1,42 @@
 <?php
+$erro = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     include 'conexao.php';
 
-    // Dados do formulário de cadastro
     $nome = $_POST['nome'];
     $email = $_POST['email'];
-    $cpf = $_POST['cpf']; // CPF adicionado
+    $cpf = $_POST['cpf']; 
+    $telefone = $_POST['telefone'];
     $senha = password_hash($_POST['senha'], PASSWORD_BCRYPT);
 
-    // Inserir cliente
-    $sql_cliente = "INSERT INTO Cliente (nome, email, cpf, senha) VALUES ('$nome', '$email', '$cpf', '$senha')";
-    if ($conexao->query($sql_cliente) === TRUE) {
-        $id_cliente = $conexao->insert_id;
-
-        // Dados do formulário de cotidiano
-        $carro = $_POST['carro'];
-        $onibus = $_POST['onibus'];
-        $luz = $_POST['luz'];
-        $gas = $_POST['gas'];
-        $carne = $_POST['carne'];
-        $reciclagem = $_POST['reciclagem'];
-
-        // Inserir cotidiano
-        $sql_cotidiano = "INSERT INTO Cotidiano (id_cliente, carro, onibus, luz, gas, carne, reciclagem) 
-                          VALUES ('$id_cliente', '$carro', '$onibus', '$luz', '$gas', '$carne', '$reciclagem')";
-        if ($conexao->query($sql_cotidiano) === TRUE) {
-            echo "<script>alert('Cadastro e cotidiano salvos com sucesso!');</script>";
-            echo "<script>window.location.href = 'login.php';</script>"; // Redireciona para login.php
-        } else {
-            echo "<script>alert('Erro ao salvar cotidiano: " . $conexao->error . "');</script>";
-        }
+    // Verifica se já existe email ou cpf
+    $sql_verifica = "SELECT * FROM Cliente WHERE email = '$email' OR cpf = '$cpf'";
+    $res_verifica = $conexao->query($sql_verifica);
+    if ($res_verifica && $res_verifica->num_rows > 0) {
+        $erro = "CPF ou e-mail já está registrado!";
     } else {
-        echo "<script>alert('Erro ao salvar cadastro: " . $conexao->error . "');</script>";
+        $sql_cliente = "INSERT INTO Cliente (nome, email, cpf, senha, telefone) VALUES ('$nome', '$email', '$cpf', '$senha', '$telefone')";
+        if ($conexao->query($sql_cliente) === TRUE) {
+            $id_cliente = $conexao->insert_id;
+
+            $carro = $_POST['carro'];
+            $onibus = $_POST['onibus'];
+            $luz = $_POST['luz'];
+            $gas = $_POST['gas'];
+            $carne = $_POST['carne'];
+            $reciclagem = $_POST['reciclagem'];
+
+            $sql_cotidiano = "INSERT INTO Cotidiano (id_cliente, carro, onibus, luz, gas, carne, reciclagem) 
+                              VALUES ('$id_cliente', '$carro', '$onibus', '$luz', '$gas', '$carne', '$reciclagem')";
+            if ($conexao->query($sql_cotidiano) === TRUE) {
+                echo "<script>alert('Cadastro e cotidiano salvos com sucesso!');</script>";
+                echo "<script>window.location.href = 'login.php';</script>";
+            } else {
+                $erro = "Erro ao salvar cotidiano: " . $conexao->error;
+            }
+        } else {
+            $erro = "Erro ao salvar cadastro: " . $conexao->error;
+        }
     }
 }
 ?>
@@ -103,7 +108,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       border-radius: 30px;
       width: 320px;
       color: white;
-      max-height: 427px; /* Define uma altura máxima */
+      max-height: 490px; /* Define uma altura máxima */
       overflow-y: auto; /* Adiciona barra de rolagem vertical */
     }
 
@@ -231,13 +236,103 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       margin: 0 30px;
       height: auto;
     }
+
+    .btn-x {
+      background: none;
+      border: none;
+      font-size: 2rem;
+      color: #1f804e;
+      cursor: pointer;
+      font-weight: bold;
+      margin-top: -50px;
+      margin-left: 10px;
+    }
+
+    .footer-novo {
+      background: #1b2430;
+      color: #fff;
+      padding: 2.5rem 1rem 1rem 1rem;
+      margin-top: 2rem;
+      width: 100vw;
+      position: relative;
+      left: 0%;
+      right: 50%;
+      margin-left: -50vw;
+      margin-right: -50vw;
+      box-sizing: border-box;
+    }
+
+    
+    .footer-novo {
+      background: #1b2430;
+      color: #fff;
+      padding: 2.5rem 1rem 1rem 1rem;
+      margin-top: 2rem;
+      width: 100vw;
+      position: relative;
+      left: 0%;
+      right: 50%;
+      margin-left: -50vw;
+      margin-right: -50vw;
+      box-sizing: border-box;
+    }
+.footer-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2rem;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.footer-col {
+  min-width: 180px;
+  flex: 1;
+}
+.footer-col h4 {
+  margin-bottom: 1rem;
+  color:rgb(255, 255, 255);
+}
+.footer-col a {
+  color: #cfd8dc;
+  text-decoration: none;
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+  transition: color 0.2s;
+}
+.footer-col a:hover {
+  color: #28a060;
+}
+.footer-bottom {
+  text-align: center;
+  color: #aaa;
+  font-size: 0.95rem;
+  margin-top: 2rem;
+  border-top: 1px solid #333;
+  padding-top: 1rem;
+}
+footer p {
+ color:rgb(156, 163, 175);
+;
+}
   </style>
 </head>
 <body>
 
 <header>
   <img class="im" src="img/logo2.png" alt="Circuito Sustentável"/>
+  <div class="btn-x-container">
+    <button onclick="window.location.href='tela_inicial.php'" class="btn-x">&#10005;</button>
+  </div>
 </header>
+<style>
+  .btn-x-container {
+    width: 100%;
+    display: flex;
+    justify-content: flex-start;
+  }
+</style>
+
 
 <div class="container">
   <!-- Formulário de cadastro -->
@@ -245,6 +340,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <h2>Cadastre-se</h2>
     <form method="POST" action="cadastro.php">
       <div class="form-section">
+        <?php if (!empty($erro)): ?>
+          <p style="color: red;"><?= $erro ?></p>
+        <?php endif; ?>
         <label for="nome">Nome completo</label>
         <input type="text" id="nome" name="nome" required />
 
@@ -253,7 +351,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <label for="cpf">CPF</label>
         <input type="text" id="cpf" name="cpf" required oninput="this.value = formatarCPF(this.value)" />
-        <!-- Aplica a formatação ao CPF -->
+
+        <label for="telefone">Telefone</label>
+        <input type="text" id="telefone" name="telefone" required oninput="this.value = formatarTelefone(this.value)" />
 
         <label for="senha">Senha</label>
         <input type="password" id="senha" name="senha" required />
@@ -349,8 +449,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     cpf = cpf.replace(/(\d{3})(\d{1,2})$/, '$1-$2'); 
     return cpf;
   }
+
+  function formatarTelefone(telefone) {
+    telefone = telefone.replace(/\D/g, '');
+    telefone = telefone.slice(0, 11);
+    if (telefone.length > 0) {
+      telefone = '(' + telefone;
+    }
+    if (telefone.length > 3) {
+      telefone = telefone.slice(0, 3) + ') ' + telefone.slice(3);
+    }
+    if (telefone.length > 10) {
+      telefone = telefone.slice(0, 10) + '-' + telefone.slice(10);
+    }
+    return telefone;
+  }
 </script>
-
-
+<footer class="footer-novo">
+    <div class="footer-container">
+      <div class="footer-col">
+        <h4>Circuito Sustentável</h4>
+        <p>Oferecendo solução para o meio ambiente e seu bolso.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Contato</h4>
+        <p>📧 circuito_sustentavel@gmail.com</p>
+        <p>📞 (85) 992933310</p>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      &copy; 2025 Circuito Sustentável Inc. Todos os direitos reservados.
+    </div>
+</footer>
 </body>
 </html>

@@ -37,7 +37,9 @@ CREATE TABLE Produto (
 CREATE TABLE Carrinho (
     id_carrinho INT PRIMARY KEY AUTO_INCREMENT,
     id_cliente INT,
-    FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente)
+    id_vendedor INT NULL,
+    FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente),
+    FOREIGN KEY (id_vendedor) REFERENCES Vendedor(id_vendedor)
 );
 
 CREATE TABLE Item_Carrinho (
@@ -51,9 +53,11 @@ CREATE TABLE Item_Carrinho (
 CREATE TABLE Pedido (
     id_pedido INT PRIMARY KEY AUTO_INCREMENT,
     id_cliente INT,
+    id_vendedor INT NULL,
     data DATETIME DEFAULT CURRENT_TIMESTAMP,
     status VARCHAR(50),
-    FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente)
+    FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente),
+    FOREIGN KEY (id_vendedor) REFERENCES Vendedor(id_vendedor)
 );
 
 CREATE TABLE Item_Pedido (
@@ -76,20 +80,24 @@ CREATE TABLE Pagamento (
 CREATE TABLE Postagem (
     id_postagem INT PRIMARY KEY AUTO_INCREMENT,
     id_cliente INT,
+    id_vendedor INT NULL,
     titulo VARCHAR(255),
     conteudo TEXT,
     data DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente)
+    FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente),
+    FOREIGN KEY (id_vendedor) REFERENCES Vendedor(id_vendedor)
 );
 
 CREATE TABLE Comentario (
     id_comentario INT PRIMARY KEY AUTO_INCREMENT,
     id_postagem INT,
     id_cliente INT,
+    id_vendedor INT NULL,
     conteudo TEXT,
     data DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (id_postagem) REFERENCES Postagem(id_postagem),
-    FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente)
+    FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente),
+    FOREIGN KEY (id_vendedor) REFERENCES Vendedor(id_vendedor)
 );
 CREATE TABLE Reembolso (
     id_reembolso INT PRIMARY KEY AUTO_INCREMENT,
@@ -101,16 +109,20 @@ CREATE TABLE Reembolso (
 CREATE TABLE Assinatura (
     id_assinatura INT PRIMARY KEY AUTO_INCREMENT,
     id_cliente INT,
+    id_vendedor INT NULL,
     data_inicio DATE,
     data_fim DATE,
     ativa BOOLEAN DEFAULT TRUE,
-    FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente)
+    FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente),
+    FOREIGN KEY (id_vendedor) REFERENCES Vendedor(id_vendedor)
 );
 CREATE TABLE Moeda (
     id_moeda INT PRIMARY KEY AUTO_INCREMENT,
     id_cliente INT,
+    id_vendedor INT NULL,
     quantidade INT,
-    FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente)
+    FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente),
+    FOREIGN KEY (id_vendedor) REFERENCES Vendedor(id_vendedor)
 );
 
 CREATE TABLE Cupom (
@@ -122,11 +134,13 @@ CREATE TABLE Cupom (
 CREATE TABLE Pergunta (
     id_pergunta INT PRIMARY KEY AUTO_INCREMENT,
     id_cliente INT,
+    id_vendedor INT NULL,
     id_produto INT,
     texto TEXT,
     data DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente),
-    FOREIGN KEY (id_produto) REFERENCES Produto(id_produto)
+    FOREIGN KEY (id_produto) REFERENCES Produto(id_produto),
+    FOREIGN KEY (id_vendedor) REFERENCES Vendedor(id_vendedor)
 );
 
 CREATE TABLE Resposta (
@@ -142,13 +156,15 @@ CREATE TABLE Resposta (
 CREATE TABLE Cotidiano (
     id_cotidiano INT PRIMARY KEY AUTO_INCREMENT,
     id_cliente INT,
+    id_vendedor INT NULL,
     carro VARCHAR(50),
     onibus VARCHAR(50),
     luz VARCHAR(50),
     gas VARCHAR(50),
     carne VARCHAR(50),
     reciclagem VARCHAR(50),
-    FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente)
+    FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente),
+    FOREIGN KEY (id_vendedor) REFERENCES Vendedor(id_vendedor)
 );
 
 CREATE TABLE Endereco (
@@ -163,5 +179,14 @@ CREATE TABLE Endereco (
     estado VARCHAR(50),
     cep VARCHAR(20),
     FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente),
+    FOREIGN KEY (id_vendedor) REFERENCES Vendedor(id_vendedor)
+);
+
+CREATE TABLE DocumentosVendedor (
+    id_documento INT PRIMARY KEY AUTO_INCREMENT,
+    id_vendedor INT,
+    foto_usuario VARCHAR(255),
+    foto_rg_frente VARCHAR(255),
+    foto_rg_verso VARCHAR(255),
     FOREIGN KEY (id_vendedor) REFERENCES Vendedor(id_vendedor)
 );

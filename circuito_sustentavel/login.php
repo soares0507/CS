@@ -61,6 +61,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       display: flex;
       flex-direction: column;
       align-items: center;
+      overflow-x: hidden; /* Impede rolagem horizontal */
+      width: 100vw;
+      box-sizing: border-box;
     }
 
     header {
@@ -82,10 +85,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       display: flex;
       justify-content: flex-start; /* Alinha o formulário e o botão à esquerda */
       margin-bottom: 50px;
-      margin-top: -50px;
+      margin-top: -54px;
       width: 100%; /* Garante que o container ocupe toda a largura */
       padding-left: 50px; /* Adiciona um espaçamento à esquerda */
-      margin-left: 20%;
+      margin-left: -60%; /* Corrige o deslocamento lateral */
+      max-width: 600px; /* Limita a largura máxima */
+      box-sizing: border-box;
     }
 
     .form-box {
@@ -97,12 +102,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     h1 {
-       
       font-size: 80px;
-      max-width: 1500px;
-      margin-left: 2%;
+      max-width: 100%;
+      margin-left: -70%;
       color:white;
-      min-width: 1580px;
+      min-width: 100px;
+      text-align: left;
+      margin-top: 6%;
     }
 
     label {
@@ -124,10 +130,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       box-sizing: border-box;
     }
 
+    .button-row {
+      display: flex;
+      gap: 19px;
+      justify-content: flex-start;
+      margin-top: 6%;
+      margin-left: 1%;
+    }
+
     .button {
-      display: block;
-      margin: 30px auto 0 auto;
-      padding: 20px 35px;
+      padding: 10px 35px;
       background-color:rgb(0, 102, 46);
       border: none;
       border-radius: 10px;
@@ -135,8 +147,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       font-weight: bold;
       font-size: 18px;
       cursor: pointer;
-      margin-left: 17%; /* Alinha o botão à esquerda */
-      margin-top: 6%;
     }
 
     .toggle-container {
@@ -182,6 +192,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         margin-right: 15%;
         margin-top: -20%;
     }
+    .footer-novo {
+      background: #1b2430;
+      color: #fff;
+      padding: 2.5rem 1rem 1rem 1rem;
+      margin-top: 13rem;
+      width: 100vw;
+      position: relative;
+      left: 0%;
+      right: 50%;
+      margin-left: -50vw;
+      margin-right: -50vw;
+      box-sizing: border-box;
+      overflow-x: hidden;
+    }
+.footer-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2rem;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.footer-col {
+  min-width: 180px;
+  flex: 1;
+}
+.footer-col h4 {
+  margin-bottom: 1rem;
+  color:rgb(255, 255, 255);
+}
+.footer-col a {
+  color: #cfd8dc;
+  text-decoration: none;
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+  transition: color 0.2s;
+}
+.footer-col a:hover {
+  color: #28a060;
+}
+.footer-bottom {
+  text-align: center;
+  color: #aaa;
+  font-size: 0.95rem;
+  margin-top: 2rem;
+  border-top: 1px solid #333;
+  padding-top: 1rem;
+}
+footer p {
+ color:rgb(156, 163, 175);
+;
+}
   </style>
 </head>
 <body>
@@ -191,7 +254,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </header>
 <h1 class="mate">Login</h1>
   <div class="container">
-    <!-- Formulário de cadastro -->
+    
     <div class="form-box">
      
       <form method="POST" action="login.php">
@@ -211,7 +274,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <p style="color: red;"><?= $erro ?></p>
         <?php endif; ?>
 
-        <button type="submit" class="button">Continuar</button>
+        <div class="button-row">
+          <button type="submit" class="button">Continuar</button>
+          <button type="button" class="button" onclick="window.location.href='cadastro.php'">Registra-se</button>
+        </div>
       </form>
     </div>
   </div>
@@ -232,6 +298,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       }
     }
   </script>
-
+<footer class="footer-novo">
+    <div class="footer-container">
+      <div class="footer-col">
+        <h4>Circuito Sustentável</h4>
+        <p>Oferecendo solução para o meio ambiente e seu bolso.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Contato</h4>
+        <p>📧 circuito_sustentavel@gmail.com</p>
+        <p>📞 (85) 992933310</p>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      &copy; 2025 Circuito Sustentável Inc. Todos os direitos reservados.
+    </div>
+</footer>
 </body>
 </html>
