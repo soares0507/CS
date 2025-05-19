@@ -128,7 +128,6 @@ if (!isset($_SESSION['vendedor_id'])) {
         <button class="botao-acao" onclick="location.href='cadastrar_produto.php'">Cadastrar Produto</button>
         <button class="botao-acao" onclick="location.href='atualizar_pedido.php'">Atualizar Pedido</button>
         <button class="botao-acao" onclick="location.href='ver_produtos.php'">Atualizar Produto</button>
-        <button class="botao-acao" onclick="location.href='excluir_produto.php'">Excluir Produto</button>
       </div>
     </div>
   </main>

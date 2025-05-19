@@ -108,10 +108,13 @@
       border-radius: 30px;
       cursor: pointer;
       margin-left: 34%;
+      font-weight: bold;
+      transition: background 0.2s;
     }
 
     .register-btn:hover {
-      background-color: white;
+      background-color: #1f804e;
+      color: #fff;
     }
 
     .image-placeholder {

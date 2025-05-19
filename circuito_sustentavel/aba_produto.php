@@ -8,6 +8,44 @@ if ($id_produto <= 0) {
     exit;
 }
 
+// Processa envio de pergunta
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pergunta']) && isset($_SESSION['usuario_id'])) {
+    $texto = trim($_POST['pergunta']);
+    $id_cliente = $_SESSION['usuario_id'];
+    if ($texto !== '') {
+        $texto_sql = $conexao->real_escape_string($texto);
+        $conexao->query("INSERT INTO Pergunta (id_cliente, id_produto, texto) VALUES ('$id_cliente', '$id_produto', '$texto_sql')");
+        header("Location: aba_produto.php?id=$id_produto");
+        exit;
+    }
+}
+
+// Processa envio de resposta do vendedor
+if (
+    $_SERVER['REQUEST_METHOD'] === 'POST' &&
+    isset($_POST['resposta']) &&
+    isset($_POST['id_pergunta']) &&
+    isset($_SESSION['vendedor_id'])
+) {
+    // Verifica se o vendedor é o dono do produto
+    $id_vendedor = $_SESSION['vendedor_id'];
+    $sql_verifica = "SELECT id_vendedor FROM Produto WHERE id_produto = '$id_produto'";
+    $res_verifica = $conexao->query($sql_verifica);
+    if ($res_verifica && $res_verifica->num_rows > 0) {
+        $row = $res_verifica->fetch_assoc();
+        if ($row['id_vendedor'] == $id_vendedor) {
+            $texto_resp = trim($_POST['resposta']);
+            $id_pergunta = intval($_POST['id_pergunta']);
+            if ($texto_resp !== '') {
+                $texto_resp_sql = $conexao->real_escape_string($texto_resp);
+                $conexao->query("INSERT INTO Resposta (id_pergunta, id_vendedor, texto) VALUES ('$id_pergunta', '$id_vendedor', '$texto_resp_sql')");
+                header("Location: aba_produto.php?id=$id_produto");
+                exit;
+            }
+        }
+    }
+}
+
 $sql = "SELECT p.*, v.nome as nome_vendedor, v.email as email_vendedor FROM Produto p JOIN Vendedor v ON p.id_vendedor = v.id_vendedor WHERE p.id_produto = '$id_produto'";
 $res = $conexao->query($sql);
 if (!$res || $res->num_rows == 0) {
@@ -24,9 +62,35 @@ if (!empty($produto['imagens'])) {
 }
 $img_principal = !empty($imagens[0]) ? $imagens[0] : 'img/sem-imagem.png';
 
-$sql_perg = "SELECT pe.texto, c.nome, pe.data FROM Pergunta pe JOIN Cliente c ON pe.id_cliente = c.id_cliente WHERE pe.id_produto = '$id_produto' ORDER BY pe.data DESC";
-$res_perg = $conexao->query($sql);
+// Busca perguntas e respostas
+$sql_perg = "SELECT pe.id_pergunta, pe.texto, c.nome, pe.data FROM Pergunta pe JOIN Cliente c ON pe.id_cliente = c.id_cliente WHERE pe.id_produto = '$id_produto' ORDER BY pe.data DESC";
+$res_perg = $conexao->query($sql_perg);
 $perguntas = $res_perg ? $res_perg->fetch_all(MYSQLI_ASSOC) : [];
+
+// Busca respostas para as perguntas
+$respostas = [];
+if (!empty($perguntas)) {
+    $ids_perguntas = array_column($perguntas, 'id_pergunta');
+    $ids_in = implode(',', array_map('intval', $ids_perguntas));
+    if ($ids_in) {
+        $sql_resp = "SELECT r.id_pergunta, r.texto, r.data, v.nome FROM Resposta r JOIN Vendedor v ON r.id_vendedor = v.id_vendedor WHERE r.id_pergunta IN ($ids_in)";
+        $res_resp = $conexao->query($sql_resp);
+        if ($res_resp && $res_resp->num_rows > 0) {
+            while ($row = $res_resp->fetch_assoc()) {
+                $respostas[$row['id_pergunta']][] = $row;
+            }
+        }
+    }
+}
+
+$pergunta_para_responder = null;
+if (
+    isset($_SESSION['vendedor_id']) &&
+    isset($_GET['responder']) &&
+    is_numeric($_GET['responder'])
+) {
+    $pergunta_para_responder = intval($_GET['responder']);
+}
 ?>
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -343,6 +407,38 @@ footer p {
       background: rgba(0, 0, 0, 0.5);
       z-index: 999;
     }
+
+    .mt-4 h5{
+      font-weight: bold;
+    }
+    .btn-responder {
+      display: inline-block;
+      background: #28a060;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 5px 18px;
+      font-size: 1rem;
+      font-weight: bold;
+      margin-left: 10px;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+      box-shadow: 0 2px 8px rgba(40,160,96,0.07);
+      vertical-align: middle;
+    }
+    .btn-responder:hover, .btn-responder.active {
+      background: #1f804e;
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(40,160,96,0.13);
+    }
+    .form-resposta-animada {
+      animation: fadeInResposta 0.4s;
+      margin-top: 10px;
+    }
+    @keyframes fadeInResposta {
+      from { opacity: 0; transform: translateY(-10px);}
+      to { opacity: 1; transform: translateY(0);}
+    }
   </style>
 </head>
 <body>
@@ -446,7 +542,7 @@ footer p {
         </form>
       </div>
       <div class="mt-4">
-        <h5>Detalhes do produto</h5>
+        <h5>Detalhes do produto:</h5>
         <p><?php echo nl2br(htmlspecialchars($produto['descricao'])); ?></p>
       </div>
     </div>
@@ -457,14 +553,51 @@ footer p {
     <hr>
     <?php if (!empty($perguntas)): ?>
       <?php foreach ($perguntas as $p): ?>
-        <div class="mb-3">
+        <div class="mb-3" id="pergunta-<?= $p['id_pergunta'] ?>">
           <strong><?php echo htmlspecialchars($p['nome']); ?>:</strong> <?php echo htmlspecialchars($p['texto']); ?><br>
           <small class="text-muted"><?php echo date('d/m/Y', strtotime($p['data'])); ?></small>
+          <?php if (!empty($respostas[$p['id_pergunta']])): ?>
+            <?php foreach ($respostas[$p['id_pergunta']] as $resp): ?>
+              <div style="margin-left:20px;margin-top:5px;">
+                <span style="color:#1f804e;font-weight:bold;">Resposta do vendedor:</span>
+                <?= htmlspecialchars($resp['texto']) ?>
+                <br>
+                <small class="text-muted"><?= htmlspecialchars($resp['nome']) ?> - <?= date('d/m/Y', strtotime($resp['data'])) ?></small>
+              </div>
+            <?php endforeach; ?>
+          <?php endif; ?>
+
+          <?php
+          // Exibe botão "Responder" apenas para o vendedor dono do produto
+          if (
+              isset($_SESSION['vendedor_id']) &&
+              isset($produto['id_vendedor']) &&
+              $_SESSION['vendedor_id'] == $produto['id_vendedor']
+          ): ?>
+            <button class="btn-responder<?= ($pergunta_para_responder == $p['id_pergunta']) ? ' active' : '' ?>"
+              onclick="mostrarFormResposta(<?= $p['id_pergunta'] ?>, event)">Responder</button>
+          <?php endif; ?>
+
+          <div id="form-resposta-<?= $p['id_pergunta'] ?>" style="display:none;">
+            <?php
+            if (
+                isset($_SESSION['vendedor_id']) &&
+                isset($produto['id_vendedor']) &&
+                $_SESSION['vendedor_id'] == $produto['id_vendedor']
+            ): ?>
+              <form method="post" class="form-resposta-animada">
+                <input type="hidden" name="id_pergunta" value="<?= $p['id_pergunta'] ?>">
+                <textarea name="resposta" class="form-control" placeholder="Responder..." required></textarea>
+                <button type="submit" class="btn btn-success mt-2">Responder</button>
+              </form>
+            <?php endif; ?>
+          </div>
         </div>
       <?php endforeach; ?>
     <?php else: ?>
       <p class="text-muted">Nenhuma pergunta ainda.</p>
     <?php endif; ?>
+
     <?php if (isset($_SESSION['usuario_id'])): ?>
       <form method="post" class="mt-4">
         <textarea name="pergunta" class="form-control" placeholder="Faça uma pergunta sobre o produto..." required></textarea>
@@ -491,5 +624,42 @@ footer p {
     </div>
   </footer>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    function mostrarFormResposta(id, evt) {
+      evt.preventDefault();
+      // Esconde todos os forms de resposta
+      document.querySelectorAll('[id^="form-resposta-"]').forEach(function(div) {
+        div.style.display = 'none';
+      });
+      // Remove classe active de todos os botões
+      document.querySelectorAll('.btn-responder').forEach(function(btn) {
+        btn.classList.remove('active');
+      });
+      // Mostra o form da pergunta selecionada
+      var formDiv = document.getElementById('form-resposta-' + id);
+      if (formDiv) {
+        formDiv.style.display = 'block';
+        // Adiciona classe active ao botão clicado
+        if (evt.target) evt.target.classList.add('active');
+        // Scroll até a pergunta
+        var perguntaDiv = document.getElementById('pergunta-' + id);
+        if (perguntaDiv) perguntaDiv.scrollIntoView({behavior: 'smooth', block: 'center'});
+      }
+      // Atualiza a URL sem recarregar a página
+      if (history.pushState) {
+        var url = new URL(window.location);
+        url.searchParams.set('id', '<?= $id_produto ?>');
+        url.searchParams.set('responder', id);
+        history.replaceState(null, '', url);
+      }
+    }
+    // Se houver uma pergunta selecionada na URL, mostra o form ao carregar
+    window.onload = function() {
+      var responder = '<?= $pergunta_para_responder ?>';
+      if (responder) {
+        mostrarFormResposta(responder, {preventDefault:function(){}, target:document.querySelector('.btn-responder.active')});
+      }
+    };
+  </script>
 </body>
 </html>

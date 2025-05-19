@@ -395,7 +395,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['editar_dados'])) {
           <button type="button" class="edit-btn" style="background:#d43131;" onclick="cancelarEdicao()">Cancelar</button>
         </div>
       </form>
-      <button class="voltar-btn" onclick="window.history.back()">Voltar</button>
+      <button class="voltar-btn" onclick="window.location.href='<?= $tipo === 'cliente' ? 'usuario.php' : 'vendedor.php' ?>'">Voltar</button>
     </div>
   </main>
   <footer class="footer-novo">

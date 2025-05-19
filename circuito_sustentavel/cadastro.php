@@ -1,4 +1,5 @@
 <?php
+session_start();
 $erro = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     include 'conexao.php';
@@ -29,8 +30,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $sql_cotidiano = "INSERT INTO Cotidiano (id_cliente, carro, onibus, luz, gas, carne, reciclagem) 
                               VALUES ('$id_cliente', '$carro', '$onibus', '$luz', '$gas', '$carne', '$reciclagem')";
             if ($conexao->query($sql_cotidiano) === TRUE) {
-                echo "<script>alert('Cadastro e cotidiano salvos com sucesso!');</script>";
-                echo "<script>window.location.href = 'login.php';</script>";
+                // Login automático após cadastro
+                $_SESSION['usuario_id'] = $id_cliente;
+                header('Location: loja.php');
+                exit;
             } else {
                 $erro = "Erro ao salvar cotidiano: " . $conexao->error;
             }
@@ -153,14 +156,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       display: block;
       margin: 30px auto 0 auto;
       padding: 20px 35px;
-      background-color:rgb(0, 70, 31);
+      background-color: white;
       border: none;
       border-radius: 10px;
-      color:rgb(255, 255, 255);
+      color: #2e7d32;
       font-weight: bold;
       font-size: 18px;
       cursor: pointer;
-      margin-left: 32%; /* Alinha o botão à esquerda */
+      margin-left: 32%;
+      transition: background 0.2s;
+    }
+
+    .button:hover {
+      background-color: #1f804e;
+      color: #fff;
     }
 
     .toggle-container {

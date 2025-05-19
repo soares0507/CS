@@ -10,6 +10,16 @@ if (!isset($_SESSION['vendedor_id'])) {
 
 $id_vendedor = $_SESSION['vendedor_id'];
 
+// Exclusão de produto
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['excluir_produto'])) {
+    $id_produto_excluir = intval($_POST['id_produto']);
+    // Exclui o produto apenas se for do vendedor logado
+    $stmt_del = $conexao->prepare("DELETE FROM Produto WHERE id_produto = ? AND id_vendedor = ?");
+    $stmt_del->bind_param("ii", $id_produto_excluir, $id_vendedor);
+    $stmt_del->execute();
+    $stmt_del->close();
+}
+
 // Busca produtos do vendedor
 $sql = "SELECT * FROM Produto WHERE id_vendedor = ?";
 $stmt = $conexao->prepare($sql);
@@ -220,10 +230,14 @@ while ($row = $result->fetch_assoc()) {
             <div class="produto-estoque">Estoque: <?= (int)$produto['estoque'] ?></div>
             <div class="produto-desc"><?= nl2br(htmlspecialchars($produto['descricao'])) ?></div>
             <button class="botao-editar" onclick="location.href='editar.php?id=<?= $produto['id_produto'] ?>'">Editar</button>
-            <button class="botao-editar" onclick="location.href='produtos.php'">Voltar</button>
+            <form method="post" style="margin-top:10px;">
+              <input type="hidden" name="id_produto" value="<?= $produto['id_produto'] ?>">
+              <button type="submit" name="excluir_produto" class="botao-editar" style="background:#d43131;">Excluir</button>
+            </form>
           </div>
         <?php endforeach; ?>
       </div>
+      <button class="botao-editar" onclick="location.href='produtos.php'">Voltar</button>
     </div>
   </main>
 </body>

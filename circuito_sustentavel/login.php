@@ -2,6 +2,12 @@
 session_start();
 include 'conexao.php';
 
+// Redireciona se já estiver logado
+if (isset($_SESSION['usuario_id']) || isset($_SESSION['vendedor_id'])) {
+    header('Location: loja.php');
+    exit;
+}
+
 $erro = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -140,13 +146,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     .button {
       padding: 10px 35px;
-      background-color:rgb(0, 102, 46);
+      background-color:white;
       border: none;
       border-radius: 10px;
-      color:rgb(255, 255, 255);
+      color: #2e7d32;
       font-weight: bold;
       font-size: 18px;
       cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .button:hover {
+      background-color: #1f804e;
+      color: #fff;
     }
 
     .toggle-container {
