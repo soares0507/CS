@@ -8,42 +8,6 @@ if ($id_produto <= 0) {
     exit;
 }
 
-// Adiciona ao carrinho
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['adicionar_carrinho'])) {
-    if (isset($_SESSION['usuario_id'])) {
-        $id_cliente = $_SESSION['usuario_id'];
-        $id_vendedor = "NULL";
-    } elseif (isset($_SESSION['vendedor_id'])) {
-        $id_vendedor = $_SESSION['vendedor_id'];
-        $id_cliente = "NULL";
-    } else {
-        header("Location: login.php");
-        exit;
-    }
-
-    // Verifica se já existe carrinho
-    $res = $conexao->query("SELECT id_carrinho FROM Carrinho WHERE id_cliente = $id_cliente AND id_vendedor = $id_vendedor");
-    if ($res && $res->num_rows > 0) {
-        $row = $res->fetch_assoc();
-        $id_carrinho = $row['id_carrinho'];
-    } else {
-        $conexao->query("INSERT INTO Carrinho (id_cliente, id_vendedor) VALUES ($id_cliente, $id_vendedor)");
-        $id_carrinho = $conexao->insert_id;
-    }
-
-    // Verifica se já existe o item no carrinho
-    $res_item = $conexao->query("SELECT * FROM Item_Carrinho WHERE id_carrinho = $id_carrinho AND id_produto = $id_produto");
-    if ($res_item && $res_item->num_rows > 0) {
-        $conexao->query("UPDATE Item_Carrinho SET quantidade = quantidade + 1 WHERE id_carrinho = $id_carrinho AND id_produto = $id_produto");
-    } else {
-        $conexao->query("INSERT INTO Item_Carrinho (id_carrinho, id_produto, quantidade) VALUES ($id_carrinho, $id_produto, 1)");
-    }
-
-    header("Location: carrinho.php");
-    exit;
-}
-
-// [Demais lógicas da página permanecem inalteradas...]
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pergunta']) && isset($_SESSION['usuario_id'])) {
     $texto = trim($_POST['pergunta']);
