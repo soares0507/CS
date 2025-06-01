@@ -187,7 +187,9 @@ if ($res && $res->num_rows > 0) {
     <header>
         <div class="logo">
             <a href="loja.php"><img src="img/logo2.png" alt="Logo"></a>
-            <span class="header-title">Meu Carrinho</span>
+        </div>
+        <div style="margin-left:auto;">
+            <button onclick="window.history.back()" style="background: none; border: none; font-size: 2rem; color: #1f804e; cursor: pointer; font-weight: bold;">&#10005;</button>
         </div>
     </header>
     <main>
@@ -197,7 +199,6 @@ if ($res && $res->num_rows > 0) {
         <?php else: ?>
             <?php foreach ($carrinhos as $carrinho): ?>
                 <div class="carrinho-vendedor">
-                    <h2>Vendedor: <?= htmlspecialchars($carrinho['nome_vendedor'] ?? 'Loja') ?></h2>
                     <form method="post">
                     <table>
                         <tr>
@@ -230,11 +231,11 @@ if ($res && $res->num_rows > 0) {
                             </td>
                             <td>R$ <?= number_format($item['preco'],2,',','.') ?></td>
                             <td>
-                                <form method="post" style="display:inline;">
+                                <form method="post" style="display:inline;" id="form-qtd-<?= $item['id_produto'] ?>-<?= $id_carrinho ?>">
                                     <input type="hidden" name="id_carrinho" value="<?= $id_carrinho ?>">
                                     <input type="hidden" name="id_produto" value="<?= $item['id_produto'] ?>">
-                                    <input type="number" name="quantidade" min="1" max="<?= (int)$item['estoque'] ?>" value="<?= (int)$item['quantidade'] ?>" style="width:60px;" <?= ((int)$item['estoque'] <= 0 ? 'disabled' : '') ?>>
-                                    <button type="submit" name="atualizar_qtd" style="background:#28a060;color:#fff;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;" <?= ((int)$item['estoque'] <= 0 ? 'disabled' : '') ?>>Atualizar</button>
+                                    <input type="number" name="quantidade" min="1" max="<?= (int)$item['estoque'] ?>" value="<?= (int)$item['quantidade'] ?>" style="width:60px;" <?= ((int)$item['estoque'] <= 0 ? 'disabled' : '') ?> onchange="this.form.submit()" >
+                                    <input type="hidden" name="atualizar_qtd" value="1">
                                 </form>
                             </td>
                             <td>R$ <?= number_format($subtotal,2,',','.') ?></td>
@@ -250,20 +251,18 @@ if ($res && $res->num_rows > 0) {
                         <tr>
                             <td colspan="3" class="total">Total</td>
                             <td class="total">R$ <?= number_format($total,2,',','.') ?></td>
-                            
                         </tr>
                         <?php else: ?>
                         <tr><td colspan="5" style="color:#888;">Nenhum produto neste carrinho.</td></tr>
                         <?php endif; ?>
                     </table>
-                    </form>
-                    <form method="post" style="margin-top:10px;">
+                    <div style="text-align:center;">
                         <button class="btn-finalizar" type="submit" name="finalizar_compra">Finalizar Compra</button>
+                    </div>
                     </form>
                 </div>
             <?php endforeach; ?>
         <?php endif; ?>
-        <button class="btn-voltar" onclick="window.location.href='loja.php'">Voltar à Loja</button>
     </main>
 </body>
 </html>

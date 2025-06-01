@@ -378,7 +378,11 @@ footer p {
 
     <div class="atalhos">
       <div class="dados-atalho"><a href="dados.php"><img src="img/dados.png" alt=""></a></div>
-      <div class="assinatura-atalho"><a href="assinatura_usuario.php"><img src="img/assinatura.png" alt=""></a></div>
+      <div class="assinatura-atalho">
+        <a href="<?php echo ($usuario['premium'] ? 'c+.php' : 'assinatura_usuario.php'); ?>">
+          <img src="img/assinatura.png" alt="">
+        </a>
+      </div>
       <div class="perguntas-atalho"><a href="perguntas.php"><img src="img/perguntas.png" alt=""></a></div>
       <div class="pedidos-atalho"><a href="pedidos.php"><img src="img/pedidos.png" alt=""></a></div>
        <div class="vender-atalho"><a href="vender.php"><img src="img/vender.png" alt=""></a></div>

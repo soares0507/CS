@@ -133,7 +133,10 @@ if ($res && $res->num_rows > 0) {
     <header>
         <div class="logo">
             <a href="loja.php"><img src="img/logo2.png" alt="Logo"></a>
-            <span class="header-title">Minhas Perguntas</span>
+            
+        </div>
+        <div style="margin-left:auto;">
+            <button onclick="window.history.back()" style="background: none; border: none; font-size: 2rem; color: #1f804e; cursor: pointer; font-weight: bold;">&#10005;</button>
         </div>
     </header>
     <main>
@@ -155,7 +158,6 @@ if ($res && $res->num_rows > 0) {
                 </div>
             <?php endforeach; ?>
         <?php endif; ?>
-        <button class="voltar-btn" onclick="window.location.href='usuario.php'">Voltar</button>
     </main>
 </body>
 </html>

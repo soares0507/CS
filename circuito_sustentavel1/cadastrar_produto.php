@@ -11,6 +11,13 @@ if (!isset($_SESSION['vendedor_id'])) {
 $erro = '';
 $sucesso = '';
 
+
+$upload_dir = __DIR__ . '/uploads_produtos/';
+$upload_url = 'uploads_produtos/';
+if (!is_dir($upload_dir)) {
+    mkdir($upload_dir, 0755, true);
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nome = $_POST['nome'] ?? '';
     $preco = $_POST['preco'] ?? '';
@@ -21,25 +28,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$nome || !$preco || !$estoque) {
         $erro = "Preencha todos os campos obrigatórios!";
     } else {
-        // Salva as imagens e monta o array de caminhos
         $imagens_salvas = [];
-        $upload_dir = "img/produtos/";
-        if (!is_dir($upload_dir)) {
-            mkdir($upload_dir, 0777, true);
-        }
-        for ($i = 0; $i < 6; $i++) {
-            if (isset($_FILES['imagens']['name'][$i]) && $_FILES['imagens']['name'][$i]) {
-                $ext = pathinfo($_FILES['imagens']['name'][$i], PATHINFO_EXTENSION);
-                $nome_arquivo = "produto_" . uniqid() . ".$ext";
-                $caminho = $upload_dir . $nome_arquivo;
-                if (move_uploaded_file($_FILES['imagens']['tmp_name'][$i], $caminho)) {
-                    $imagens_salvas[] = $caminho;
+        if (!empty($_FILES['imagens']) && isset($_FILES['imagens']['name'][0]) && $_FILES['imagens']['name'][0] != '') {
+            $total = count($_FILES['imagens']['name']);
+            for ($i = 0; $i < $total && $i < 6; $i++) {
+                if ($_FILES['imagens']['error'][$i] === UPLOAD_ERR_OK) {
+                    $tmp_name = $_FILES['imagens']['tmp_name'][$i];
+                    $ext = strtolower(pathinfo($_FILES['imagens']['name'][$i], PATHINFO_EXTENSION));
+                    $permitidas = ['jpg','jpeg','png','gif','webp'];
+                    if (!in_array($ext, $permitidas)) continue;
+                    $nome_arquivo = uniqid('produto_', true) . '.' . $ext;
+                    $destino = $upload_dir . $nome_arquivo;
+                    if (move_uploaded_file($tmp_name, $destino)) {
+                        $imagens_salvas[] = $upload_url . $nome_arquivo;
+                    }
                 }
             }
         }
         $imagens_json = json_encode($imagens_salvas);
 
-        // Salva o produto com os caminhos das imagens
         $stmt = $conexao->prepare("INSERT INTO Produto (nome, descricao, preco, estoque, id_vendedor, imagens) VALUES (?, ?, ?, ?, ?, ?)");
         $stmt->bind_param("ssdiss", $nome, $descricao, $preco, $estoque, $id_vendedor, $imagens_json);
         if ($stmt->execute()) {
@@ -200,9 +207,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <label for="descricao">Descrição</label>
         <textarea id="descricao" name="descricao" maxlength="1000"></textarea>
 
-        <label for="imagens">Imagens (até 6):</label>
-        <input type="file" id="imagens" name="imagens[]" accept="image/*" multiple required>
-        <small>Selecione até 6 imagens. Apenas imagens são permitidas.</small>
+        <label for="imagens">Imagens:</label>
+        <input type="file" id="imagens" name="imagens[]" accept="image/*" multiple>
 
         <div class="botoes">
           <button type="submit" class="botao-acao">Cadastrar</button>

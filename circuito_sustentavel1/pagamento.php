@@ -2,6 +2,11 @@
 session_start();
 include 'conexao.php';
 
+// Limpa o flag de pedido registrado ao acessar via GET (nova compra)
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_SESSION['pedido_registrado'])) {
+    unset($_SESSION['pedido_registrado']);
+}
+
 if (!isset($_SESSION['usuario_id']) && !isset($_SESSION['vendedor_id'])) {
     $_SESSION['redirect_after_login'] = 'pagamento.php';
     header('Location: login.php');
@@ -28,64 +33,74 @@ $produto_unico = null;
 $produtos_carrinho = [];
 $total = 0;
 
-if ($id_produto_unico > 0) {
-    $sql = "SELECT * FROM Produto WHERE id_produto = '$id_produto_unico'";
-    $res = $conexao->query($sql);
-    if ($res && $res->num_rows > 0) {
-        $produto_unico = $res->fetch_assoc();
-        $img_produto = 'img/sem-imagem.png';
-        if (!empty($produto_unico['imagens'])) {
-            $imagens = json_decode($produto_unico['imagens'], true);
-            if (!is_array($imagens)) $imagens = explode(',', $produto_unico['imagens']);
-            if (!empty($imagens[0])) $img_produto = $imagens[0];
-        }
-        $estoque = (int)$produto_unico['estoque'];
-        if ($quantidade_unica > $estoque) $quantidade_unica = $estoque;
-        $total = $produto_unico['preco'] * $quantidade_unica;
-    }
+// Adiciona suporte para assinatura
+$valor_assinatura = isset($_GET['assinatura']) ? floatval($_GET['assinatura']) : 0;
+$is_assinatura = $valor_assinatura > 0;
+
+if ($is_assinatura) {
+    $total = $valor_assinatura;
+    $produto_unico = null;
+    $produtos_carrinho = [];
 } else {
-    if (isset($_SESSION['usuario_id'])) {
-        $id_cliente = $_SESSION['usuario_id'];
-        $sql = "SELECT c.id_carrinho, ic.id_produto, ic.quantidade, p.nome, p.preco, p.imagens, p.estoque
-                FROM Carrinho c
-                JOIN Item_Carrinho ic ON c.id_carrinho = ic.id_carrinho
-                JOIN Produto p ON ic.id_produto = p.id_produto
-                WHERE c.id_cliente = '$id_cliente'";
+    if ($id_produto_unico > 0) {
+        $sql = "SELECT * FROM Produto WHERE id_produto = '$id_produto_unico'";
         $res = $conexao->query($sql);
         if ($res && $res->num_rows > 0) {
-            while ($row = $res->fetch_assoc()) {
-                $img_produto = 'img/sem-imagem.png';
-                if (!empty($row['imagens'])) {
-                    $imagens = json_decode($row['imagens'], true);
-                    if (!is_array($imagens)) $imagens = explode(',', $row['imagens']);
-                    if (!empty($imagens[0])) $img_produto = $imagens[0];
-                }
-                $row['img_produto'] = $img_produto;
-                $row['subtotal'] = $row['preco'] * $row['quantidade'];
-                $total += $row['subtotal'];
-                $produtos_carrinho[] = $row;
+            $produto_unico = $res->fetch_assoc();
+            $img_produto = 'img/sem-imagem.png';
+            if (!empty($produto_unico['imagens'])) {
+                $imagens = json_decode($produto_unico['imagens'], true);
+                if (!is_array($imagens)) $imagens = explode(',', $produto_unico['imagens']);
+                if (!empty($imagens[0])) $img_produto = $imagens[0];
             }
+            $estoque = (int)$produto_unico['estoque'];
+            if ($quantidade_unica > $estoque) $quantidade_unica = $estoque;
+            $total = $produto_unico['preco'] * $quantidade_unica;
         }
-    } else if (isset($_SESSION['vendedor_id'])) {
-        $id_vendedor = $_SESSION['vendedor_id'];
-        $sql = "SELECT c.id_carrinho, ic.id_produto, ic.quantidade, p.nome, p.preco, p.imagens, p.estoque
-                FROM Carrinho c
-                JOIN Item_Carrinho ic ON c.id_carrinho = ic.id_carrinho
-                JOIN Produto p ON ic.id_produto = p.id_produto
-                WHERE c.id_vendedor = '$id_vendedor' AND c.id_cliente IS NULL";
-        $res = $conexao->query($sql);
-        if ($res && $res->num_rows > 0) {
-            while ($row = $res->fetch_assoc()) {
-                $img_produto = 'img/sem-imagem.png';
-                if (!empty($row['imagens'])) {
-                    $imagens = json_decode($row['imagens'], true);
-                    if (!is_array($imagens)) $imagens = explode(',', $row['imagens']);
-                    if (!empty($imagens[0])) $img_produto = $imagens[0];
+    } else {
+        if (isset($_SESSION['usuario_id'])) {
+            $id_cliente = $_SESSION['usuario_id'];
+            $sql = "SELECT c.id_carrinho, ic.id_produto, ic.quantidade, p.nome, p.preco, p.imagens, p.estoque
+                    FROM Carrinho c
+                    JOIN Item_Carrinho ic ON c.id_carrinho = ic.id_carrinho
+                    JOIN Produto p ON ic.id_produto = p.id_produto
+                    WHERE c.id_cliente = '$id_cliente'";
+            $res = $conexao->query($sql);
+            if ($res && $res->num_rows > 0) {
+                while ($row = $res->fetch_assoc()) {
+                    $img_produto = 'img/sem-imagem.png';
+                    if (!empty($row['imagens'])) {
+                        $imagens = json_decode($row['imagens'], true);
+                        if (!is_array($imagens)) $imagens = explode(',', $row['imagens']);
+                        if (!empty($imagens[0])) $img_produto = $imagens[0];
+                    }
+                    $row['img_produto'] = $img_produto;
+                    $row['subtotal'] = $row['preco'] * $row['quantidade'];
+                    $total += $row['subtotal'];
+                    $produtos_carrinho[] = $row;
                 }
-                $row['img_produto'] = $img_produto;
-                $row['subtotal'] = $row['preco'] * $row['quantidade'];
-                $total += $row['subtotal'];
-                $produtos_carrinho[] = $row;
+            }
+        } else if (isset($_SESSION['vendedor_id'])) {
+            $id_vendedor = $_SESSION['vendedor_id'];
+            $sql = "SELECT c.id_carrinho, ic.id_produto, ic.quantidade, p.nome, p.preco, p.imagens, p.estoque
+                    FROM Carrinho c
+                    JOIN Item_Carrinho ic ON c.id_carrinho = ic.id_carrinho
+                    JOIN Produto p ON ic.id_produto = p.id_produto
+                    WHERE c.id_vendedor = '$id_vendedor' AND c.id_cliente IS NULL";
+            $res = $conexao->query($sql);
+            if ($res && $res->num_rows > 0) {
+                while ($row = $res->fetch_assoc()) {
+                    $img_produto = 'img/sem-imagem.png';
+                    if (!empty($row['imagens'])) {
+                        $imagens = json_decode($row['imagens'], true);
+                        if (!is_array($imagens)) $imagens = explode(',', $row['imagens']);
+                        if (!empty($imagens[0])) $img_produto = $imagens[0];
+                    }
+                    $row['img_produto'] = $img_produto;
+                    $row['subtotal'] = $row['preco'] * $row['quantidade'];
+                    $total += $row['subtotal'];
+                    $produtos_carrinho[] = $row;
+                }
             }
         }
     }
@@ -103,7 +118,106 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Buscar endereços do usuário logado (Cliente)
+// Cadastro de novo endereço (cliente ou vendedor)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['rua'], $_POST['numero'], $_POST['bairro'], $_POST['cidade'], $_POST['estado'], $_POST['cep'])) {
+    $rua = $conexao->real_escape_string(trim($_POST['rua']));
+    $numero = $conexao->real_escape_string(trim($_POST['numero']));
+    $complemento = $conexao->real_escape_string(trim($_POST['complemento'] ?? ''));
+    $bairro = $conexao->real_escape_string(trim($_POST['bairro']));
+    $cidade = $conexao->real_escape_string(trim($_POST['cidade']));
+    $estado = $conexao->real_escape_string(trim($_POST['estado']));
+    $cep = $conexao->real_escape_string(trim($_POST['cep']));
+    $id_cliente = isset($_SESSION['usuario_id']) ? intval($_SESSION['usuario_id']) : null;
+    $id_vendedor = isset($_SESSION['vendedor_id']) ? intval($_SESSION['vendedor_id']) : null;
+
+    if ($id_cliente) {
+        $conexao->query("INSERT INTO Endereco (id_cliente, rua, numero, complemento, bairro, cidade, estado, cep) VALUES ('$id_cliente', '$rua', '$numero', '$complemento', '$bairro', '$cidade', '$estado', '$cep')");
+    } elseif ($id_vendedor) {
+        $conexao->query("INSERT INTO Endereco (id_vendedor, rua, numero, complemento, bairro, cidade, estado, cep) VALUES ('$id_vendedor', '$rua', '$numero', '$complemento', '$bairro', '$cidade', '$estado', '$cep')");
+    }
+    // Após cadastrar, recarrega a página para mostrar o novo endereço
+    header("Location: pagamento.php");
+    exit;
+}
+
+// REGISTRAR PEDIDO AO CONFIRMAR PAGAMENTO
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['metodo']) && in_array($_POST['metodo'], ['cartao','pix','boleto'])) {
+    // Verifica se já não foi registrado nesta sessão
+    if (!isset($_SESSION['pedido_registrado'])) {
+        $id_cliente = isset($_SESSION['usuario_id']) ? intval($_SESSION['usuario_id']) : null;
+        $id_vendedor = isset($_SESSION['vendedor_id']) ? intval($_SESSION['vendedor_id']) : null;
+        $forma_pagamento = $_POST['metodo'];
+        // Altere o status do pedido e do pagamento conforme solicitado
+        $status_pedido = 'Pedido enviado ao vendedor';
+
+        // Determina produtos e valores
+        $itens = [];
+        $total_pedido = 0;
+        if ($is_assinatura) {
+            // Compra de assinatura: não há itens de produto
+            // Atualiza premium no banco
+            if ($id_cliente) {
+                $conexao->query("UPDATE Cliente SET premium = 1 WHERE id_cliente = '$id_cliente'");
+            } elseif ($id_vendedor) {
+                $conexao->query("UPDATE Vendedor SET premium = 1 WHERE id_vendedor = '$id_vendedor'");
+            }
+        } else if ($id_produto_unico > 0 && $produto_unico) {
+            $itens[] = [
+                'id_produto' => $produto_unico['id_produto'],
+                'quantidade' => $quantidade_unica,
+                'preco' => $produto_unico['preco']
+            ];
+            $total_pedido = $produto_unico['preco'] * $quantidade_unica;
+            $id_vendedor_pedido = $produto_unico['id_vendedor'];
+        } else {
+            if (!empty($produtos_carrinho)) {
+                foreach ($produtos_carrinho as $prod) {
+                    $itens[] = [
+                        'id_produto' => $prod['id_produto'],
+                        'quantidade' => $prod['quantidade'],
+                        'preco' => $prod['preco']
+                    ];
+                    $total_pedido += $prod['subtotal'];
+                    $id_vendedor_pedido = null; // pode ser múltiplos vendedores, mas aqui pega o último
+                    if (isset($prod['id_vendedor'])) $id_vendedor_pedido = $prod['id_vendedor'];
+                }
+            }
+        }
+
+        // Cria o pedido (apenas se não for assinatura)
+        if (!$is_assinatura && ($id_cliente || $id_vendedor)) {
+            $sql_pedido = "INSERT INTO Pedido (id_cliente, id_vendedor, status) VALUES (" .
+                ($id_cliente ? "'$id_cliente'" : "NULL") . "," .
+                ($id_vendedor ? "'$id_vendedor'" : (isset($id_vendedor_pedido) ? "'$id_vendedor_pedido'" : "NULL")) . "," .
+                "'$status_pedido')";
+            if ($conexao->query($sql_pedido)) {
+                $id_pedido = $conexao->insert_id;
+                // Insere itens do pedido
+                foreach ($itens as $item) {
+                    $id_produto = intval($item['id_produto']);
+                    $qtd = intval($item['quantidade']);
+                    $preco = floatval($item['preco']);
+                    $conexao->query("INSERT INTO Item_Pedido (id_pedido, id_produto, quantidade, preco) VALUES ('$id_pedido', '$id_produto', '$qtd', '$preco')");
+                    // Atualiza estoque
+                    $conexao->query("UPDATE Produto SET estoque = estoque - $qtd WHERE id_produto = '$id_produto'");
+                }
+                // Insere pagamento com status Confirmado
+                $conexao->query("INSERT INTO Pagamento (id_pedido, forma_pagamento, status) VALUES ('$id_pedido', '$forma_pagamento', 'Confirmado')");
+                // Limpa carrinho se não for compra direta
+                if (!$id_produto_unico && isset($_SESSION['usuario_id'])) {
+                    $id_cliente = $_SESSION['usuario_id'];
+                    $conexao->query("DELETE FROM Item_Carrinho WHERE id_carrinho IN (SELECT id_carrinho FROM Carrinho WHERE id_cliente = '$id_cliente')");
+                } else if (!$id_produto_unico && isset($_SESSION['vendedor_id'])) {
+                    $id_vendedor = $_SESSION['vendedor_id'];
+                    $conexao->query("DELETE FROM Item_Carrinho WHERE id_carrinho IN (SELECT id_carrinho FROM Carrinho WHERE id_vendedor = '$id_vendedor' AND id_cliente IS NULL)");
+                }
+            }
+        }
+        $_SESSION['pedido_registrado'] = true;
+    }
+}
+
+// Buscar endereços do usuário logado (Cliente ou Vendedor)
 $enderecos = [];
 $endereco_selecionado = '';
 if (isset($_SESSION['usuario_id'])) {
@@ -114,7 +228,18 @@ if (isset($_SESSION['usuario_id'])) {
         while ($row = $res_end->fetch_assoc()) {
             $enderecos[] = $row;
         }
-        // Seleciona o primeiro endereço como padrão
+        if (!empty($enderecos)) {
+            $endereco_selecionado = $enderecos[0]['id_endereco'];
+        }
+    }
+} else if (isset($_SESSION['vendedor_id'])) {
+    $id_vendedor = $_SESSION['vendedor_id'];
+    $sql_end = "SELECT id_endereco, rua, numero, complemento, bairro, cidade, estado, cep FROM Endereco WHERE id_vendedor = '$id_vendedor'";
+    $res_end = $conexao->query($sql_end);
+    if ($res_end && $res_end->num_rows > 0) {
+        while ($row = $res_end->fetch_assoc()) {
+            $enderecos[] = $row;
+        }
         if (!empty($enderecos)) {
             $endereco_selecionado = $enderecos[0]['id_endereco'];
         }
@@ -471,7 +596,16 @@ if (isset($_SESSION['usuario_id'])) {
         <button class="btn-pagar" onclick="window.location.href='loja.php'">Voltar à Loja</button>
       <?php else: ?>
         <div class="valor-total">Total: <span style="color:#1f804e;">R$ <?= number_format($total,2,',','.') ?></span></div>
-        <?php if ($produto_unico): ?>
+        <?php if ($is_assinatura): ?>
+          <div class="produto-unico-box">
+            <img src="img/logo2.png" class="produto-unico-img" alt="Assinatura">
+            <div class="produto-unico-info">
+              <span class="produto-unico-nome">Assinatura Premium</span>
+              <div style="color:#145c36;font-weight:bold;">R$ <?= number_format($valor_assinatura,2,',','.') ?>/mês</div>
+              <div style="color:#888;font-size:1em;">Acesso a todos os benefícios premium</div>
+            </div>
+          </div>
+        <?php elseif ($produto_unico): ?>
           <div class="produto-unico-box">
             <img src="<?= htmlspecialchars($img_produto) ?>" class="produto-unico-img" alt="Produto">
             <div class="produto-unico-info">
@@ -506,7 +640,7 @@ if (isset($_SESSION['usuario_id'])) {
         <!-- Endereço de entrega -->
         <div class="endereco-container">
           <h3>Endereço de Entrega</h3>
-          <?php if (isset($_SESSION['usuario_id'])): ?>
+          <?php if (isset($_SESSION['usuario_id']) || isset($_SESSION['vendedor_id'])): ?>
             <?php if (!empty($enderecos)): ?>
               <form method="post" id="form-endereco" style="margin-bottom:1rem;">
                 <label for="endereco_select" style="font-weight:bold;color:#145c36;">Selecione um endereço:</label>
@@ -555,7 +689,7 @@ if (isset($_SESSION['usuario_id'])) {
               </div>
             <?php endif; ?>
           <?php else: ?>
-            <div style="color:#888;">Faça login como cliente para informar o endereço de entrega.</div>
+            <div style="color:#888;">Faça login para informar o endereço de entrega.</div>
           <?php endif; ?>
         </div>
         <!-- Fim endereço de entrega -->
@@ -599,7 +733,7 @@ if (isset($_SESSION['usuario_id'])) {
           </div>
           <button type="submit" class="btn-pagar">Gerar Boleto</button>
         </form>
-        <button class="btn-pagar" style="background:#eb3b3b;margin-top:1.5rem;" type="button" onclick="window.history.back()">Voltar</button>
+        <button class="btn-pagar" style="background:#eb3b3b;margin-top:1.5rem;" type="button" id="btn-voltar">Cancelar Compra</button>
       <?php endif; ?>
     </div>
   </main>
@@ -621,6 +755,17 @@ if (isset($_SESSION['usuario_id'])) {
       if (v.length > 2) v = v.slice(0,2) + '/' + v.slice(2);
       input.value = v;
     }
+    // Confirmação ao clicar em Voltar
+    document.addEventListener('DOMContentLoaded', function() {
+      var btnVoltar = document.getElementById('btn-voltar');
+      if (btnVoltar) {
+        btnVoltar.onclick = function() {
+          if (confirm('Você realmente deseja cancelar?')) {
+            window.location.href = 'loja.php';
+          }
+        }
+      }
+    });
   </script>
 </body>
 </html>

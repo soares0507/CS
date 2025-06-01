@@ -115,7 +115,7 @@ if (!isset($_SESSION['vendedor_id'])) {
   <header>
     <div class="logo">
       <a href="loja.php"><img src="img/logo2.png" alt="Logo"></a>
-      <span class="header-title">Painel do Vendedor</span>
+      
     </div>
     <div style="margin-top: 10px; margin-left: 5px;">
       <button onclick="window.location.href='vendedor.php'" style="background: none; border: none; font-size: 2rem; color: #1f804e; cursor: pointer; font-weight: bold;">&#10005;</button>
@@ -126,8 +126,9 @@ if (!isset($_SESSION['vendedor_id'])) {
       <h1>Gerenciar Produtos</h1>
       <div class="botoes">
         <button class="botao-acao" onclick="location.href='cadastrar_produto.php'">Cadastrar Produto</button>
-        <button class="botao-acao" onclick="location.href='atualizar_pedido.php'">Atualizar Pedido</button>
         <button class="botao-acao" onclick="location.href='ver_produtos.php'">Atualizar Produto</button>
+        <button class="botao-acao" onclick="location.href='atualizar_pedido.php'">Atualizar Pedido</button>
+        
       </div>
     </div>
   </main>

@@ -35,41 +35,44 @@ if (!empty($produto['imagens'])) {
 $erro = '';
 $sucesso = '';
 
+// Diretório universal para uploads
+$upload_dir = __DIR__ . '/uploads_produtos/';
+$upload_url = 'uploads_produtos/';
+if (!is_dir($upload_dir)) {
+    mkdir($upload_dir, 0755, true);
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nome = $_POST['nome'] ?? '';
     $preco = $_POST['preco'] ?? '';
     $estoque = $_POST['estoque'] ?? '';
     $descricao = $_POST['descricao'] ?? '';
 
-    // Atualiza imagens se houver upload
     $imagens_atualizadas = $imagens;
-    $upload_dir = "img/produtos/";
-    if (!is_dir($upload_dir)) {
-        mkdir($upload_dir, 0777, true);
-    }
     for ($i = 0; $i < 6; $i++) {
         if (isset($_FILES['imagens']['name'][$i]) && $_FILES['imagens']['name'][$i]) {
-            $ext = pathinfo($_FILES['imagens']['name'][$i], PATHINFO_EXTENSION);
-            $nome_arquivo = "produto_" . uniqid() . ".$ext";
-            $caminho = $upload_dir . $nome_arquivo;
-            if (move_uploaded_file($_FILES['imagens']['tmp_name'][$i], $caminho)) {
-                $imagens_atualizadas[$i] = $caminho;
+            if ($_FILES['imagens']['error'][$i] === UPLOAD_ERR_OK) {
+                $tmp_name = $_FILES['imagens']['tmp_name'][$i];
+                $ext = strtolower(pathinfo($_FILES['imagens']['name'][$i], PATHINFO_EXTENSION));
+                $permitidas = ['jpg','jpeg','png','gif','webp'];
+                if (!in_array($ext, $permitidas)) continue;
+                $nome_arquivo = uniqid('produto_', true) . '.' . $ext;
+                $destino = $upload_dir . $nome_arquivo;
+                if (move_uploaded_file($tmp_name, $destino)) {
+                    $imagens_atualizadas[$i] = $upload_url . $nome_arquivo;
+                }
             }
         } elseif (isset($_POST["imagem_existente_$i"])) {
-            // Mantém imagem existente
             $imagens_atualizadas[$i] = $_POST["imagem_existente_$i"];
         }
     }
-    // Remove imagens extras se menos de 6
     $imagens_atualizadas = array_slice($imagens_atualizadas, 0, 6);
     $imagens_json = json_encode($imagens_atualizadas);
 
-    // Atualiza produto
     $stmt = $conexao->prepare("UPDATE Produto SET nome=?, descricao=?, preco=?, estoque=?, imagens=? WHERE id_produto=? AND id_vendedor=?");
     $stmt->bind_param("ssdissi", $nome, $descricao, $preco, $estoque, $imagens_json, $id_produto, $id_vendedor);
     if ($stmt->execute()) {
         $sucesso = "Produto atualizado com sucesso!";
-        // Atualiza dados para exibir na tela
         $produto['nome'] = $nome;
         $produto['descricao'] = $descricao;
         $produto['preco'] = $preco;

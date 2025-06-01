@@ -22,8 +22,8 @@
 
     body {
       font-family: 'Segoe UI', sans-serif;
-      background-color: #f4f4f4; /* Alterado para fundo claro */
-      color: #222; /* Texto escuro para melhor contraste */
+      background-color: #f4f4f4;
+      color: #222;
       line-height: 1.6;
     }
 
@@ -61,19 +61,64 @@
       color: var(--verde);
     }
 
-    .btn-topo {
-      background: var(--verde);
+    .btn-topo,
+    .btn-principal {
+      background: linear-gradient(90deg, #28a060 0%, #1f804e 100%);
       color: white;
       border: none;
       padding: 0.6rem 1.2rem;
       border-radius: 6px;
       font-weight: bold;
       cursor: pointer;
-      transition: background 0.3s;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 0 0 0 #28a060;
+      transition:
+        background 0.3s,
+        box-shadow 0.3s,
+        transform 0.2s,
+        filter 0.3s;
+      z-index: 1;
+      animation: btnPulse 1.5s infinite alternate;
     }
 
-    .btn-topo:hover {
-      background: var(--verde-escuro);
+    .btn-topo::before,
+    .btn-principal::before {
+      content: '';
+      position: absolute;
+      top: 0; left: -75%; width: 50%; height: 100%;
+      background: linear-gradient(120deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.05) 100%);
+      transform: skewX(-25deg);
+      transition: left 0.4s;
+      z-index: 2;
+      pointer-events: none;
+      animation: btnShine 2.2s infinite linear;
+    }
+
+    .btn-topo:hover,
+    .btn-principal:hover {
+      background: linear-gradient(90deg, #1f804e 0%, #28a060 100%);
+      color: #fff;
+      transform: scale(1.08) rotate(-1deg);
+      box-shadow: 0 8px 24px #28a06055, 0 0 16px #fff8;
+      filter: brightness(1.08) saturate(1.2);
+    }
+
+    .btn-topo:active,
+    .btn-principal:active {
+      transform: scale(0.98);
+      filter: brightness(0.95);
+    }
+
+    @keyframes btnPulse {
+      0% { box-shadow: 0 0 0 0 #28a06055; }
+      100% { box-shadow: 0 0 16px 8px #28a06033; }
+    }
+
+    @keyframes btnShine {
+      0% { left: -75%; }
+      60% { left: 120%; }
+      100% { left: 120%; }
     }
 
     .section {
@@ -170,7 +215,7 @@
       background: var(--verde);
       color: #fff;
       transform: scale(1.10);
-      box-shadow: 0 16px 40px rgba(40, 160, 96, 0.25);
+      box-shadow: 0 16px 40px rgba(40,160,96,0.25);
     }
 
     .beneficio:hover h3,
@@ -381,7 +426,76 @@ footer p {
   }
 }
 
-</style>
+    /* CSS para o preço super chamativo */
+    .preco-chamativo-area {
+      margin: 2.5rem auto 2rem auto;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+    .preco-chamativo {
+      background: linear-gradient(90deg, #28a060 0%, #1f804e 100%);
+      color: #fff;
+      font-size: 3.5rem;
+      font-weight: bold;
+      padding: 1.2rem 3.5rem;
+      border-radius: 30px;
+      box-shadow: 0 8px 32px rgba(40,160,96,0.25), 0 0 0 8px #e9f7ef;
+      letter-spacing: 2px;
+      text-shadow: 0 4px 16px #145c36, 0 1px 0 #fff;
+      animation: pulse 1.2s infinite alternate;
+      border: 4px solid #fff;
+      position: relative;
+    }
+    .preco-chamativo span.valor-centavos {
+      font-size: 2.5rem;
+    }
+    .preco-chamativo span.valor-so {
+      font-size: 1.5rem;
+      vertical-align: super;
+    }
+    .preco-chamativo span.valor-mes {
+      font-size: 1.2rem;
+      vertical-align: super;
+    }
+    .preco-chamativo-promo {
+      position: absolute;
+      top: -30px;
+      right: -30px;
+      background: #ffeb3b;
+      color: #1f804e;
+      font-size: 1.1rem;
+      font-weight: bold;
+      padding: 0.5rem 1.2rem;
+      border-radius: 18px;
+      box-shadow: 0 2px 8px #28a06055;
+      transform: rotate(10deg);
+      border: 2px solid #fff;
+      animation: bounce 1.5s infinite alternate;
+    }
+    .preco-chamativo-desc {
+      margin-top: 1.2rem;
+      font-size: 1.3rem;
+      color: #28a060;
+      font-weight: bold;
+      text-shadow: 0 1px 0 #fff;
+      letter-spacing: 1px;
+      animation: glow 1.5s infinite alternate;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 8px #e9f7ef, 0 8px 32px rgba(40,160,96,0.25);}
+      100% { box-shadow: 0 0 0 16px #e9f7ef, 0 16px 48px rgba(40,160,96,0.35);}
+    }
+    @keyframes bounce {
+      0% { transform: rotate(10deg) translateY(0);}
+      100% { transform: rotate(10deg) translateY(-10px);}
+    }
+    @keyframes glow {
+      0% { color: #28a060; text-shadow: 0 0 8px #28a06055;}
+      100% { color: #1f804e; text-shadow: 0 0 18px #28a06099;}
+    }
+  </style>
 </head>
 <body>
 
@@ -390,7 +504,7 @@ footer p {
     <nav>
       <a href="#">Início</a>
       <a href="#">Contato</a>
-      <button class="btn-topo">Assinar</button>
+      <button class="btn-topo" id="btn-topo-assinar">Assinar</button>
     </nav>
   </header>
 
@@ -400,6 +514,17 @@ footer p {
       <p>
         Acesse recursos exclusivos, conteúdo personalizado e suporte prioritário com nossa assinatura. Junte-se hoje e transforme seus projetos.
       </p>
+      <div class="preco-chamativo-area">
+        <div class="preco-chamativo">
+          <span class="valor-so">Só</span>
+          R$14,<span class="valor-centavos">99</span>
+          <span class="valor-mes">/mês</span>
+          <span class="preco-chamativo-promo">Imperdível!</span>
+        </div>
+        <div class="preco-chamativo-desc">
+          Aproveite todos os benefícios premium por menos que um lanche!
+        </div>
+      </div>
 
       <div class="beneficios">
         <div class="beneficio">
@@ -429,8 +554,7 @@ footer p {
       </div>
 
       <div class="btns">
-        <button class="btn btn-principal">Assine Agora</button>
-        
+        <button class="btn btn-principal" id="btn-principal-assinar">Assine Agora</button>
       </div>
     </div>
   </section>
@@ -495,6 +619,14 @@ footer p {
         }
       });
     });
+
+    // Redireciona para pagamento.php com o preço da assinatura ao clicar nos botões "Assinar"
+    document.getElementById('btn-topo-assinar').onclick = function() {
+      window.location.href = 'pagamento.php?assinatura=14.99';
+    };
+    document.getElementById('btn-principal-assinar').onclick = function() {
+      window.location.href = 'pagamento.php?assinatura=14.99';
+    };
   </script>
 
 </body>

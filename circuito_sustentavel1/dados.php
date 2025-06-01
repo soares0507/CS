@@ -292,6 +292,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['editar_dados'])) {
       font-weight: bold;
       margin-bottom: 1rem;
       text-align: center;
+      
     }
   </style>
   <script>
@@ -337,11 +338,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['editar_dados'])) {
       <a href="loja.php"><img src="img/logo2.png" alt="Logo"></a>
       <span class="header-title">Meus Dados</span>
     </div>
+   <div style="margin-left:auto;">
+            <button onclick="window.location.href='<?= $tipo === 'cliente' ? 'usuario.php' : 'vendedor.php' ?>'" style="background: none; border: none; font-size: 2rem; color: #1f804e; cursor: pointer; font-weight: bold; ">&#10005;</button>
+        </div>
     <div class="user-info">
-      <img src="img/user.png" alt="Usuário">
-      <span><?= htmlspecialchars($usuario['nome']) ?></span>
     </div>
   </header>
+   
   <main>
     <div class="dados-container">
       <h1>Meus Dados</h1>
@@ -395,7 +398,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['editar_dados'])) {
           <button type="button" class="edit-btn" style="background:#d43131;" onclick="cancelarEdicao()">Cancelar</button>
         </div>
       </form>
-      <button class="voltar-btn" onclick="window.location.href='<?= $tipo === 'cliente' ? 'usuario.php' : 'vendedor.php' ?>'">Voltar</button>
     </div>
   </main>
   <footer class="footer-novo">

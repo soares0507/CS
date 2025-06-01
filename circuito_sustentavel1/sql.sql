@@ -19,8 +19,8 @@ CREATE TABLE Vendedor (
     senha VARCHAR(255),
     data_criacao DATETIME DEFAULT CURRENT_TIMESTAMP,
     cpf VARCHAR(50),
-    telefone VARCHAR(50)
-
+    telefone VARCHAR(50),
+    premium BOOLEAN DEFAULT FALSE
 );
 
 CREATE TABLE Produto (
