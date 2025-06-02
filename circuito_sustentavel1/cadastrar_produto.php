@@ -11,48 +11,46 @@ if (!isset($_SESSION['vendedor_id'])) {
 $erro = '';
 $sucesso = '';
 
-
-$upload_dir = __DIR__ . '/uploads_produtos/';
-$upload_url = 'uploads_produtos/';
-if (!is_dir($upload_dir)) {
-    mkdir($upload_dir, 0755, true);
+$pasta_upload = __DIR__ . '/uploads_produtos/';
+$url_upload = 'uploads_produtos/';
+if (!is_dir($pasta_upload)) {
+    mkdir($pasta_upload, 0755, true);
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $nome = $_POST['nome'] ?? '';
-    $preco = $_POST['preco'] ?? '';
-    $estoque = $_POST['estoque'] ?? '';
-    $descricao = $_POST['descricao'] ?? '';
+    $nome_produto = $_POST['nome'] ?? '';
+    $preco_produto = $_POST['preco'] ?? '';
+    $estoque_produto = $_POST['estoque'] ?? '';
+    $descricao_produto = $_POST['descricao'] ?? '';
     $id_vendedor = $_SESSION['vendedor_id'];
 
-    if (!$nome || !$preco || !$estoque) {
+    if (!$nome_produto || !$preco_produto || !$estoque_produto) {
         $erro = "Preencha todos os campos obrigatórios!";
     } else {
         $imagens_salvas = [];
         if (!empty($_FILES['imagens']) && isset($_FILES['imagens']['name'][0]) && $_FILES['imagens']['name'][0] != '') {
-            $total = count($_FILES['imagens']['name']);
-            for ($i = 0; $i < $total && $i < 6; $i++) {
+            $total_imagens = count($_FILES['imagens']['name']);
+            for ($i = 0; $i < $total_imagens && $i < 6; $i++) {
                 if ($_FILES['imagens']['error'][$i] === UPLOAD_ERR_OK) {
-                    $tmp_name = $_FILES['imagens']['tmp_name'][$i];
-                    $ext = strtolower(pathinfo($_FILES['imagens']['name'][$i], PATHINFO_EXTENSION));
+                    $caminho_temporario = $_FILES['imagens']['tmp_name'][$i];
+                    $extensao = strtolower(pathinfo($_FILES['imagens']['name'][$i], PATHINFO_EXTENSION));
                     $permitidas = ['jpg','jpeg','png','gif','webp'];
-                    if (!in_array($ext, $permitidas)) continue;
-                    $nome_arquivo = uniqid('produto_', true) . '.' . $ext;
-                    $destino = $upload_dir . $nome_arquivo;
-                    if (move_uploaded_file($tmp_name, $destino)) {
-                        $imagens_salvas[] = $upload_url . $nome_arquivo;
+                    if (!in_array($extensao, $permitidas)) continue;
+                    $nome_arquivo = uniqid('produto_', true) . '.' . $extensao;
+                    $destino = $pasta_upload . $nome_arquivo;
+                    if (move_uploaded_file($caminho_temporario, $destino)) {
+                        $imagens_salvas[] = $url_upload . $nome_arquivo;
                     }
                 }
             }
         }
         $imagens_json = json_encode($imagens_salvas);
 
-        $stmt = $conexao->prepare("INSERT INTO Produto (nome, descricao, preco, estoque, id_vendedor, imagens) VALUES (?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("ssdiss", $nome, $descricao, $preco, $estoque, $id_vendedor, $imagens_json);
-        if ($stmt->execute()) {
-            $sucesso = "Produto cadastrado com sucesso!";
+        $sql = "INSERT INTO Produto (nome, descricao, preco, estoque, id_vendedor, imagens) VALUES ('$nome_produto', '$descricao_produto', '$preco_produto', '$estoque_produto', '$id_vendedor', '$imagens_json')";
+        if ($conexao->query($sql)) {
+            $mensagem_sucesso = "Produto cadastrado com sucesso!";
         } else {
-            $erro = "Erro ao cadastrar produto!";
+            $mensagem_erro = "Erro ao cadastrar produto!";
         }
     }
 }

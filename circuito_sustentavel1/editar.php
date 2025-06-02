@@ -11,19 +11,15 @@ if (!isset($_SESSION['vendedor_id'])) {
 $id_vendedor = $_SESSION['vendedor_id'];
 $id_produto = isset($_GET['id']) ? intval($_GET['id']) : 0;
 
-// Busca produto
-$stmt = $conexao->prepare("SELECT * FROM Produto WHERE id_produto = ? AND id_vendedor = ?");
-$stmt->bind_param("ii", $id_produto, $id_vendedor);
-$stmt->execute();
-$result = $stmt->get_result();
-$produto = $result->fetch_assoc();
+$sql = "SELECT * FROM Produto WHERE id_produto = '$id_produto' AND id_vendedor = '$id_vendedor'";
+$resultado = $conexao->query($sql);
+$produto = $resultado ? $resultado->fetch_assoc() : null;
 
 if (!$produto) {
     echo "<p style='color:red;text-align:center;margin-top:2rem;'>Produto não encontrado ou acesso negado.</p>";
     exit;
 }
 
-// Decodifica imagens
 $imagens = [];
 if (!empty($produto['imagens'])) {
     $imagens = json_decode($produto['imagens'], true);
@@ -35,11 +31,10 @@ if (!empty($produto['imagens'])) {
 $erro = '';
 $sucesso = '';
 
-// Diretório universal para uploads
-$upload_dir = __DIR__ . '/uploads_produtos/';
-$upload_url = 'uploads_produtos/';
-if (!is_dir($upload_dir)) {
-    mkdir($upload_dir, 0755, true);
+$pasta_upload = __DIR__ . '/uploads_produtos/';
+$url_upload = 'uploads_produtos/';
+if (!is_dir($pasta_upload)) {
+    mkdir($pasta_upload, 0755, true);
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -52,14 +47,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     for ($i = 0; $i < 6; $i++) {
         if (isset($_FILES['imagens']['name'][$i]) && $_FILES['imagens']['name'][$i]) {
             if ($_FILES['imagens']['error'][$i] === UPLOAD_ERR_OK) {
-                $tmp_name = $_FILES['imagens']['tmp_name'][$i];
-                $ext = strtolower(pathinfo($_FILES['imagens']['name'][$i], PATHINFO_EXTENSION));
+                $caminho_temporario = $_FILES['imagens']['tmp_name'][$i];
+                $extensao = strtolower(pathinfo($_FILES['imagens']['name'][$i], PATHINFO_EXTENSION));
                 $permitidas = ['jpg','jpeg','png','gif','webp'];
-                if (!in_array($ext, $permitidas)) continue;
-                $nome_arquivo = uniqid('produto_', true) . '.' . $ext;
-                $destino = $upload_dir . $nome_arquivo;
-                if (move_uploaded_file($tmp_name, $destino)) {
-                    $imagens_atualizadas[$i] = $upload_url . $nome_arquivo;
+                if (!in_array($extensao, $permitidas)) continue;
+                $nome_arquivo = uniqid('produto_', true) . '.' . $extensao;
+                $destino = $pasta_upload . $nome_arquivo;
+                if (move_uploaded_file($caminho_temporario, $destino)) {
+                    $imagens_atualizadas[$i] = $url_upload . $nome_arquivo;
                 }
             }
         } elseif (isset($_POST["imagem_existente_$i"])) {
@@ -69,9 +64,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $imagens_atualizadas = array_slice($imagens_atualizadas, 0, 6);
     $imagens_json = json_encode($imagens_atualizadas);
 
-    $stmt = $conexao->prepare("UPDATE Produto SET nome=?, descricao=?, preco=?, estoque=?, imagens=? WHERE id_produto=? AND id_vendedor=?");
-    $stmt->bind_param("ssdissi", $nome, $descricao, $preco, $estoque, $imagens_json, $id_produto, $id_vendedor);
-    if ($stmt->execute()) {
+    $sql = "UPDATE Produto SET nome='$nome', descricao='$descricao', preco='$preco', estoque='$estoque', imagens='$imagens_json' WHERE id_produto='$id_produto' AND id_vendedor='$id_vendedor'";
+    if ($conexao->query($sql)) {
         $sucesso = "Produto atualizado com sucesso!";
         $produto['nome'] = $nome;
         $produto['descricao'] = $descricao;
@@ -251,23 +245,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <label for="descricao">Descrição</label>
         <textarea id="descricao" name="descricao" maxlength="1000"><?= htmlspecialchars($produto['descricao']) ?></textarea>
 
-        <label>Imagens do Produto (máx. 6):</label>
+        <label>Imagem:</label>
         <div class="imagens-preview">
-          <?php for ($i = 0; $i < 6; $i++): ?>
-            <?php if (!empty($imagens[$i])): ?>
-              <img src="<?= htmlspecialchars($imagens[$i]) ?>" alt="Imagem <?= $i+1 ?>">
-            <?php else: ?>
-              <img src="img/sem-imagem.png" alt="Sem imagem">
-            <?php endif; ?>
-          <?php endfor; ?>
-        </div>
-        <?php for ($i = 0; $i < 6; $i++): ?>
-          <label class="imagem-label" for="imagem<?= $i ?>">Alterar Imagem <?= $i+1 ?>:</label>
-          <input type="file" id="imagem<?= $i ?>" name="imagens[]" accept="image/*">
-          <?php if (!empty($imagens[$i])): ?>
-            <input type="hidden" name="imagem_existente_<?= $i ?>" value="<?= htmlspecialchars($imagens[$i]) ?>">
+          <?php if (!empty($imagens[0])): ?>
+            <img src="<?= htmlspecialchars($imagens[0]) ?>" alt="Imagem 1">
+          <?php else: ?>
+            <img src="img/sem-imagem.png" alt="Sem imagem">
           <?php endif; ?>
-        <?php endfor; ?>
+        </div>
+        <label class="imagem-label" for="imagem0">Alterar Imagem:</label>
+        <input type="file" id="imagem0" name="imagens[]" accept="image/*">
+        <?php if (!empty($imagens[0])): ?>
+          <input type="hidden" name="imagem_existente_0" value="<?= htmlspecialchars($imagens[0]) ?>">
+        <?php endif; ?>
 
         <div class="botoes">
           <button type="submit" class="botao-acao">Salvar Alterações</button>

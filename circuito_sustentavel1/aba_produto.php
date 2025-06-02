@@ -1,6 +1,77 @@
 <?php
 session_start();
-include 'conexao.php';
+include 'conexao.php'; // Assume que $conexao é configurado aqui
+
+// --- INÍCIO DA LÓGICA PHP PARA O HEADER (adaptado de loja.php) ---
+$usuario_logado = false;
+$usuario_nome = ''; // Pode não ser usado diretamente no header, mas bom ter
+$link_perfil = 'login.php'; // Link padrão
+
+if (isset($_SESSION['usuario_id'])) {
+    $usuario_logado = true;
+    $id_cliente_session = $_SESSION['usuario_id']; // Renomeado para evitar conflito com $id_cliente da página
+    $sql_user_header = "SELECT nome FROM Cliente WHERE id_cliente = ?";
+    $stmt_user_header = $conexao->prepare($sql_user_header);
+    if($stmt_user_header){
+        $stmt_user_header->bind_param("i", $id_cliente_session);
+        $stmt_user_header->execute();
+        $resultado_user_header = $stmt_user_header->get_result();
+        if ($resultado_user_header->num_rows > 0) {
+            $usuario_header = $resultado_user_header->fetch_assoc();
+            $usuario_nome = $usuario_header['nome']; // Define para uso geral se necessário
+        }
+        $stmt_user_header->close();
+    }
+    $link_perfil = 'usuario.php';
+} elseif (isset($_SESSION['vendedor_id'])) {
+    $usuario_logado = true;
+    $id_vendedor_session = $_SESSION['vendedor_id']; // Renomeado
+    $sql_vend_header = "SELECT nome FROM Vendedor WHERE id_vendedor = ?";
+    $stmt_vend_header = $conexao->prepare($sql_vend_header);
+    if($stmt_vend_header){
+        $stmt_vend_header->bind_param("i", $id_vendedor_session);
+        $stmt_vend_header->execute();
+        $resultado_vend_header = $stmt_vend_header->get_result();
+        if ($resultado_vend_header->num_rows > 0) {
+            $vendedor_header = $resultado_vend_header->fetch_assoc();
+            $usuario_nome = $vendedor_header['nome'];
+        }
+        $stmt_vend_header->close();
+    }
+    $link_perfil = 'vendedor.php';
+}
+
+$imagem_carrinho = 'img/carrinho_sem.png'; 
+if ($usuario_logado) {
+    $id_entidade_carrinho = isset($_SESSION['usuario_id']) ? $_SESSION['usuario_id'] : (isset($_SESSION['vendedor_id']) ? $_SESSION['vendedor_id'] : null);
+    $coluna_entidade = isset($_SESSION['usuario_id']) ? 'id_cliente' : (isset($_SESSION['vendedor_id']) ? 'id_vendedor' : null);
+
+    if ($id_entidade_carrinho && $coluna_entidade) {
+        $sql_carrinho_check = "SELECT COUNT(ic.id_produto) as total_itens 
+                           FROM Carrinho c 
+                           LEFT JOIN Item_Carrinho ic ON c.id_carrinho = ic.id_carrinho 
+                           WHERE c.$coluna_entidade = ?";
+        $stmt_carrinho_header = $conexao->prepare($sql_carrinho_check);
+        if ($stmt_carrinho_header) {
+            $stmt_carrinho_header->bind_param("i", $id_entidade_carrinho);
+            $stmt_carrinho_header->execute();
+            $resultado_carrinho_header = $stmt_carrinho_header->get_result();
+            if ($resultado_carrinho_header && $resultado_carrinho_header->num_rows > 0) {
+                 $dados_carrinho_header = $resultado_carrinho_header->fetch_assoc();
+                 if ($dados_carrinho_header['total_itens'] > 0) {
+                    $imagem_carrinho = 'img/carrinho.png';
+                 }
+            }
+            $stmt_carrinho_header->close();
+        }
+    }
+}
+$link_carrinho_header = 'carrinho.php'; 
+if(isset($_SESSION['vendedor_id'])) {
+    $link_carrinho_header = 'carrinho_vendedor.php'; 
+}
+// --- FIM DA LÓGICA PHP PARA O HEADER ---
+
 
 $id_produto = isset($_GET['id']) ? intval($_GET['id']) : 0;
 if ($id_produto <= 0) {
@@ -8,625 +79,673 @@ if ($id_produto <= 0) {
     exit;
 }
 
-// Pergunta do cliente
+// --- SUBSTITUIR LÓGICA AJAX ADD CARRINHO PELO CÓDIGO ANTIGO ---
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_add_carrinho'])) {
+    // Verifica se o usuário (cliente ou vendedor) está logado
+    if (isset($_SESSION['usuario_id'])) {
+        $id_cliente = $_SESSION['usuario_id'];
+        $is_vendedor = false;
+    } elseif (isset($_SESSION['vendedor_id'])) {
+        $id_vendedor_logado = $_SESSION['vendedor_id'];
+        $is_vendedor = true;
+    } else {
+        exit;
+    }
+
+    $id_produto_post = isset($_POST['id_produto']) ? intval($_POST['id_produto']) : 0;
+    $quantidade = isset($_POST['quantidade']) ? intval($_POST['quantidade']) : 1;
+
+    if ($id_produto_post <= 0 || $quantidade <= 0) {
+        exit;
+    }
+
+    $sql_prod = "SELECT id_vendedor FROM Produto WHERE id_produto = '$id_produto_post'";
+    $res_prod = $conexao->query($sql_prod);
+
+    if ($res_prod && $res_prod->num_rows > 0) {
+        $row_prod = $res_prod->fetch_assoc();
+        $id_vendedor_produto = $row_prod['id_vendedor'];
+        $id_carrinho = null;
+
+        if (!$is_vendedor) {
+            $sql_carrinho = "SELECT id_carrinho FROM Carrinho WHERE id_cliente = '$id_cliente' AND id_vendedor = '$id_vendedor_produto' LIMIT 1";
+            $res_carrinho = $conexao->query($sql_carrinho);
+
+            if ($res_carrinho && $res_carrinho->num_rows > 0) {
+                $id_carrinho = $res_carrinho->fetch_assoc()['id_carrinho'];
+            } else {
+                $conexao->query("INSERT INTO Carrinho (id_cliente, id_vendedor) VALUES ('$id_cliente', '$id_vendedor_produto')");
+                $id_carrinho = $conexao->insert_id;
+            }
+        } else {
+            $sql_carrinho = "SELECT id_carrinho FROM Carrinho WHERE id_cliente IS NULL AND id_vendedor = '$id_vendedor_logado' LIMIT 1";
+            $res_carrinho = $conexao->query($sql_carrinho);
+            if ($res_carrinho && $res_carrinho->num_rows > 0) {
+                $id_carrinho = $res_carrinho->fetch_assoc()['id_carrinho'];
+            } else {
+                $conexao->query("INSERT INTO Carrinho (id_cliente, id_vendedor) VALUES (NULL, '$id_vendedor_logado')");
+                $id_carrinho = $conexao->insert_id;
+            }
+        }
+
+        if ($id_carrinho) {
+            $sql_item = "SELECT quantidade FROM Item_Carrinho WHERE id_carrinho = '$id_carrinho' AND id_produto = '$id_produto_post'";
+            $res_item = $conexao->query($sql_item);
+
+            if ($res_item && $res_item->num_rows > 0) {
+                $item_existente = $res_item->fetch_assoc();
+                $nova_qtd = $item_existente['quantidade'] + $quantidade;
+                $conexao->query("UPDATE Item_Carrinho SET quantidade = '$nova_qtd' WHERE id_carrinho = '$id_carrinho' AND id_produto = '$id_produto_post'");
+            } else {
+                $conexao->query("INSERT INTO Item_Carrinho (id_carrinho, id_produto, quantidade) VALUES ('$id_carrinho', '$id_produto_post', '$quantidade')");
+            }
+            http_response_code(200);
+        } else {
+            http_response_code(500);
+        }
+    } else {
+        http_response_code(404);
+    }
+    exit;
+}
+
+
+// Lógica para Perguntas e Respostas
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pergunta']) && isset($_SESSION['usuario_id'])) {
-    $texto = trim($_POST['pergunta']);
-    $id_cliente = $_SESSION['usuario_id'];
-    if ($texto !== '') {
-        $texto_sql = $conexao->real_escape_string($texto);
-        $conexao->query("INSERT INTO Pergunta (id_cliente, id_produto, texto) VALUES ('$id_cliente', '$id_produto', '$texto_sql')");
+    $texto_pergunta = trim($_POST['pergunta']);
+    $id_cliente_pergunta = $_SESSION['usuario_id'];
+    if ($texto_pergunta !== '') {
+        $sql_insert_pergunta = "INSERT INTO Pergunta (id_cliente, id_produto, texto) VALUES (?, ?, ?)";
+        $stmt_insert_pergunta = $conexao->prepare($sql_insert_pergunta);
+        $stmt_insert_pergunta->bind_param("iis", $id_cliente_pergunta, $id_produto, $texto_pergunta);
+        $stmt_insert_pergunta->execute();
+        $stmt_insert_pergunta->close();
+        // Para evitar reenvio do formulário ao atualizar, redireciona ou limpa o POST
+        header("Location: aba_produto.php?id=$id_produto&pergunta_enviada=1#secao-perguntas");
+        exit;
     }
 }
 
-// Resposta do vendedor
-if (
-    $_SERVER['REQUEST_METHOD'] === 'POST' &&
-    isset($_POST['resposta'], $_POST['id_pergunta'], $_SESSION['vendedor_id'])
-) {
-    $id_vendedor = $_SESSION['vendedor_id'];
-    $sql_verifica = "SELECT id_vendedor FROM Produto WHERE id_produto = '$id_produto'";
-    $res_verifica = $conexao->query($sql_verifica);
-    if ($res_verifica && $res_verifica->num_rows > 0) {
-        $row = $res_verifica->fetch_assoc();
-        if ($row['id_vendedor'] == $id_vendedor) {
-            $texto_resp = trim($_POST['resposta']);
-            $id_pergunta = intval($_POST['id_pergunta']);
-            if ($texto_resp !== '') {
-                $texto_resp_sql = $conexao->real_escape_string($texto_resp);
-                $conexao->query("INSERT INTO Resposta (id_pergunta, id_vendedor, texto) VALUES ('$id_pergunta', '$id_vendedor', '$texto_resp_sql')");
-                header("Location: aba_produto.php?id=$id_produto");
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['resposta'], $_POST['id_pergunta']) && isset($_SESSION['vendedor_id'])) {
+    $id_vendedor_resposta = $_SESSION['vendedor_id'];
+    
+    $sql_check_produto_vendedor = "SELECT id_vendedor FROM Produto WHERE id_produto = ?";
+    $stmt_check_produto_vendedor = $conexao->prepare($sql_check_produto_vendedor);
+    $stmt_check_produto_vendedor->bind_param("i", $id_produto);
+    $stmt_check_produto_vendedor->execute();
+    $res_check_produto_vendedor = $stmt_check_produto_vendedor->get_result();
+
+    if ($res_check_produto_vendedor && $res_check_produto_vendedor_row = $res_check_produto_vendedor->fetch_assoc()) {
+        if ($res_check_produto_vendedor_row['id_vendedor'] == $id_vendedor_resposta) { // Verifica se o vendedor logado é o dono do produto
+            $texto_resposta = trim($_POST['resposta']);
+            $id_pergunta_resposta = intval($_POST['id_pergunta']);
+            if ($texto_resposta !== '') {
+                $sql_insert_resposta = "INSERT INTO Resposta (id_pergunta, id_vendedor, texto) VALUES (?, ?, ?)";
+                $stmt_insert_resposta = $conexao->prepare($sql_insert_resposta);
+                $stmt_insert_resposta->bind_param("iis", $id_pergunta_resposta, $id_vendedor_resposta, $texto_resposta);
+                $stmt_insert_resposta->execute();
+                $stmt_insert_resposta->close();
+                header("Location: aba_produto.php?id=$id_produto&resposta_enviada=1#pergunta-$id_pergunta_resposta");
                 exit;
             }
         }
     }
+    $stmt_check_produto_vendedor->close();
 }
 
-$sql = "SELECT p.*, v.nome as nome_vendedor FROM Produto p JOIN Vendedor v ON p.id_vendedor = v.id_vendedor WHERE p.id_produto = '$id_produto'";
-$res = $conexao->query($sql);
-if (!$res || $res->num_rows == 0) {
+// Busca dados do produto
+$sql_produto_detalhe = "SELECT p.*, v.nome as nome_vendedor FROM Produto p JOIN Vendedor v ON p.id_vendedor = v.id_vendedor WHERE p.id_produto = ?";
+$stmt_produto_detalhe = $conexao->prepare($sql_produto_detalhe);
+$stmt_produto_detalhe->bind_param("i", $id_produto);
+$stmt_produto_detalhe->execute();
+$res_produto_detalhe = $stmt_produto_detalhe->get_result();
+
+if (!$res_produto_detalhe || $res_produto_detalhe->num_rows == 0) {
     header('Location: loja.php');
     exit;
 }
-$produto = $res->fetch_assoc();
+$produto = $res_produto_detalhe->fetch_assoc();
+$stmt_produto_detalhe->close();
+
 $imagens = [];
 if (!empty($produto['imagens'])) {
-    $imagens = json_decode($produto['imagens'], true);
-    if (!is_array($imagens)) $imagens = explode(',', $produto['imagens']);
+    $imagens_json = json_decode($produto['imagens'], true);
+    if (is_array($imagens_json)) {
+        foreach($imagens_json as $img_path_raw) {
+            $img_trim = trim($img_path_raw);
+            // Corrige para garantir que o caminho seja relativo à pasta uploads_produtos
+            if (strpos($img_trim, 'uploads_produtos/') === 0) {
+                $imagens[] = $img_trim;
+            } elseif (file_exists('uploads_produtos/' . $img_trim)) {
+                $imagens[] = 'uploads_produtos/' . $img_trim;
+            } else {
+                $imagens[] = $img_trim;
+            }
+        }
+    } elseif (!empty($produto['imagens'])) { // Fallback para string separada por vírgula
+        $temp_imagens = explode(',', $produto['imagens']);
+        foreach($temp_imagens as $img_path_raw) {
+            $img_trim = trim($img_path_raw);
+            if (strpos($img_trim, 'uploads_produtos/') === 0) {
+                $imagens[] = $img_trim;
+            } elseif (file_exists('uploads_produtos/' . $img_trim)) {
+                $imagens[] = 'uploads_produtos/' . $img_trim;
+            } else {
+                $imagens[] = $img_trim;
+            }
+        }
+    }
 }
-$img_principal = !empty($imagens[0]) ? $imagens[0] : 'img/sem-imagem.png';
+$img_principal = !empty($imagens[0]) ? htmlspecialchars($imagens[0]) : 'img/sem-imagem.png';
 
-// Perguntas e respostas
-$sql_perg = "SELECT pe.id_pergunta, pe.texto, c.nome, pe.data FROM Pergunta pe JOIN Cliente c ON pe.id_cliente = c.id_cliente WHERE pe.id_produto = '$id_produto' ORDER BY pe.data DESC";
-$res_perg = $conexao->query($sql_perg);
+
+// Busca perguntas e respostas
+$sql_perg = "SELECT pe.id_pergunta, pe.texto, c.nome as nome_cliente, pe.data 
+             FROM Pergunta pe 
+             JOIN Cliente c ON pe.id_cliente = c.id_cliente 
+             WHERE pe.id_produto = ? ORDER BY pe.data DESC";
+$stmt_perg = $conexao->prepare($sql_perg);
+$stmt_perg->bind_param("i", $id_produto);
+$stmt_perg->execute();
+$res_perg = $stmt_perg->get_result();
 $perguntas = $res_perg ? $res_perg->fetch_all(MYSQLI_ASSOC) : [];
+$stmt_perg->close();
+
 $respostas = [];
-if ($perguntas) {
-    $ids_in = implode(',', array_map('intval', array_column($perguntas, 'id_pergunta')));
-    if ($ids_in) {
+if (!empty($perguntas)) {
+    $ids_perguntas = array_map('intval', array_column($perguntas, 'id_pergunta'));
+    if (!empty($ids_perguntas)) {
+        $placeholders = implode(',', array_fill(0, count($ids_perguntas), '?'));
+        $tipos = str_repeat('i', count($ids_perguntas));
+
         $sql_resp = "
-            SELECT r1.id_pergunta, r1.texto, r1.data, v.nome
-            FROM Resposta r1
-            LEFT JOIN Vendedor v ON r1.id_vendedor = v.id_vendedor
-            INNER JOIN (
-                SELECT id_pergunta, MAX(data) as max_data
-                FROM Resposta
-                WHERE id_pergunta IN ($ids_in)
-                GROUP BY id_pergunta
-            ) r2 ON r1.id_pergunta = r2.id_pergunta AND r1.data = r2.max_data
-        ";
-        $res_resp = $conexao->query($sql_resp);
-        if ($res_resp) while ($row = $res_resp->fetch_assoc()) $respostas[$row['id_pergunta']] = $row;
+            SELECT r.id_pergunta, r.texto, r.data, v.nome as nome_vendedor_resposta
+            FROM Resposta r
+            JOIN Vendedor v ON r.id_vendedor = v.id_vendedor
+            WHERE r.id_pergunta IN ($placeholders)
+            ORDER BY r.data DESC 
+        "; 
+        // Nota: A lógica original para pegar apenas a ÚLTIMA resposta foi simplificada aqui.
+        // Para pegar apenas a última, seria necessário um subselect ou lógica PHP adicional.
+        // Por simplicidade, pegamos todas as respostas e o PHP pode decidir qual mostrar se houver múltiplas.
+        // Para pegar apenas a mais recente:
+        // SELECT r1.*, v.nome as nome_vendedor_resposta FROM Resposta r1 
+        // JOIN Vendedor v ON r1.id_vendedor = v.id_vendedor
+        // INNER JOIN (SELECT id_pergunta, MAX(data) as max_data FROM Resposta WHERE id_pergunta IN ($placeholders) GROUP BY id_pergunta) r2 
+        // ON r1.id_pergunta = r2.id_pergunta AND r1.data = r2.max_data
+
+        $stmt_resp = $conexao->prepare($sql_resp);
+        $stmt_resp->bind_param($tipos, ...$ids_perguntas);
+        $stmt_resp->execute();
+        $res_resp = $stmt_resp->get_result();
+        if ($res_resp) {
+            while ($row = $res_resp->fetch_assoc()) {
+                // Se múltiplas respostas são possíveis por pergunta, agrupe-as
+                // Se só uma (a mais recente) é esperada, pode sobrescrever
+                if (!isset($respostas[$row['id_pergunta']])) { // Pega a primeira (mais recente devido ao ORDER BY)
+                     $respostas[$row['id_pergunta']] = $row;
+                }
+            }
+        }
+        $stmt_resp->close();
     }
 }
 
 $pergunta_para_responder = (isset($_SESSION['vendedor_id'], $_GET['responder']) && is_numeric($_GET['responder'])) ? intval($_GET['responder']) : null;
-
-// Adicione antes do HTML:
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['comprar'])) {
-    $id_produto_compra = $id_produto;
-    $quantidade_compra = isset($_POST['quantidade']) ? intval($_POST['quantidade']) : 1;
-    header('Location: pagamento.php?id_produto=' . $id_produto_compra . '&quantidade=' . $quantidade_compra);
-    exit;
-}
 ?>
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title><?= htmlspecialchars($produto['nome']) ?></title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><?= htmlspecialchars($produto['nome']) ?> - Circuito Sustentável</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
   <style>
+    :root {
+        --verde: #28a060;
+        --verde-escuro: #1e7c4b;
+        --verde-claro-fundo: #f0f9f4;
+        --cinza-claro: #f4f6f8; 
+        --cinza-texto: #5f6c7b;
+        --cinza-escuro: #2c3e50;
+        --branco: #ffffff;
+        --vermelho-erro: #d9534f;
+        --amarelo-compra: #FFD814;
+        --amarelo-compra-hover: #F7CA00;
+        --border-radius-sm: 4px;
+        --border-radius-md: 8px;
+        --border-radius-lg: 16px;
+        --font-principal: 'Poppins', sans-serif;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
     body {
-      background-color: #fff;
-      font-family: Arial, sans-serif;
-      background-color: #d5d3c7;
+        font-family: var(--font-principal);
+        line-height: 1.6;
+        color: var(--cinza-texto);
+        background-color: var(--cinza-claro);
+        overflow-x: hidden;
     }
-    .container-amazon {
-      max-width: 1200px;
-      margin: 30px auto;
+    
+    main {
+        padding-top: 100px;
+        padding-bottom: 40px;
     }
-    .left-column {
-      width: 50%;
+
+    .container-page {
+        width: 90%;
+        max-width: 1140px; 
+        margin: 20px auto;
     }
-    .right-column {
-      width: 45%;
+    
+    .site-header {
+        position: fixed; top: 0; left: 0; width: 100%; z-index: 1000;
+        padding: 15px 0;
+        background-color: #fff;
+        border-bottom: 1px solid #eee;
+    }
+    .header-container {
+        width: 90%; max-width: 1200px; margin: 0 auto;
+        display: flex; align-items: center; justify-content: space-between;
+    }
+    .site-header .logo { height: 45px; }
+
+    .header-center {
+        display: flex; align-items: center; gap: 20px;
+        flex-grow: 1; justify-content: flex-start; 
+        margin-left: 25px; 
+    }
+
+    .header-actions { display: flex; align-items: center; gap: 15px; }
+    .header-actions a { display: flex; align-items: center; padding: 5px; }
+    .header-actions img.action-icon {
+        height: 28px; width: auto;
+    }
+    .auth-buttons-header .btn { padding: 7px 14px; font-size: 0.85em; margin-left:5px;}
+    .auth-buttons-header .btn-outline { border: 1px solid var(--verde-escuro); color: var(--verde-escuro); background: none;}
+    .auth-buttons-header .btn-outline:hover { background-color: var(--verde-escuro); color: var(--branco); }
+
+    .product-detail-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 30px;
+        background-color: var(--branco);
+        padding: 30px;
+        border-radius: var(--border-radius-lg);
+        border: 1px solid #eee;
+    }
+    .product-images {
+        flex: 1 1 450px;
+        display: flex;
+        gap: 15px;
+    }
+    .thumbnails {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-height: 450px;
+        overflow-y: auto;
+        padding-right: 5px;
     }
     .thumbnail-img {
-      width: 60px;
-      margin-bottom: 10px;
-      cursor: pointer;
-      border: 1px solid #ddd;
-      padding: 2px;
+        width: 70px; height: 70px;
+        object-fit: cover;
+        cursor: pointer;
+        border: 2px solid var(--cinza-claro);
+        border-radius: var(--border-radius-sm);
+    }
+    .thumbnail-img.active {
+        border-color: var(--verde);
+    }
+    .main-image-container {
+        flex-grow: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
     .main-img {
-      width: 100%;
-      max-height: 400px;
-      object-fit: contain;
-      border: 1px solid #ddd;
+        max-width: 100%;
+        max-height: 450px;
+        object-fit: contain;
+        border-radius: var(--border-radius-md);
+        border: 1px solid var(--cinza-claro);
+    }
+
+    .product-info-column {
+        flex: 1 1 400px;
+        display: flex;
+        flex-direction: column;
     }
     .product-title {
-      font-size: 1.5rem;
-      font-weight: 500;
+        font-size: 1.8em;
+        font-weight: 600;
+        color: var(--cinza-escuro);
+        margin-bottom: 10px;
+        line-height: 1.3;
     }
-    .price {
-      color: #B12704;
-      font-size: 1.8rem;
-      font-weight: bold;
-      margin-top: 10px;
+    .product-vendor {
+        font-size: 0.9em;
+        color: var(--cinza-texto);
+        margin-bottom: 15px;
     }
+    .product-vendor a {
+        color: var(--verde);
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .product-price {
+        color: var(--verde-escuro);
+        font-size: 2em;
+        font-weight: 700;
+        margin-bottom: 10px;
+    }
+    .product-stock {
+        font-weight: 600;
+        margin-bottom: 20px;
+        font-size: 0.95em;
+    }
+    .product-stock.in-stock { color: var(--verde); }
+    .product-stock.out-of-stock { color: var(--vermelho-erro); }
+
     .buy-box {
-      border: 1px solid #ddd;
-      padding: 16px;
-      border-radius: 8px;
-      background-color: #f6f6f6;
+        border: 1px solid var(--cinza-claro);
+        padding: 20px;
+        border-radius: var(--border-radius-md);
+        background-color: var(--verde-claro-fundo);
+        margin-top: 15px;
     }
-    .buy-btn {
-      background-color: #FFD814;
-      border-color: #007600;
-      color: #111;
-      width: 100%;
-      font-weight: bold;
-      border-radius: 8px;
-      padding: 10px;
-      margin-top: 10px;
+    .buy-box label {
+        font-size: 0.9em;
+        font-weight: 500;
+        margin-bottom: 5px;
     }
-    .buy-btn:hover {
-      background-color: #F7CA00;
+    .buy-box input[type="number"] {
+        width: 80px;
+        padding: 8px 10px;
+        margin-bottom: 15px;
+        text-align: center;
     }
-    .stock {
-      color: #007600;
-      font-weight: bold;
-      margin-top: 10px;
+    .buy-box .btn {
+        width: 100%;
+        padding: 12px;
+        font-size: 1em;
+        margin-bottom: 10px;
+        border: none;
+        border-radius: var(--border-radius-sm);
     }
-    .rating {
-      color: #FFA41C;
-      font-size: 1rem;
+    .buy-box .btn:last-child { margin-bottom: 0; }
+    .btn-add-cart {
+        background-color: var(--amarelo-compra);
+        color: var(--cinza-escuro);
     }
-    /* Header igual loja.php */
-    header {
-      background: white;
-      padding: 1rem;
-      position: relative;
+    .btn-add-cart:hover {
+        background-color: var(--amarelo-compra-hover);
     }
-    .menu-btn {
-      background: #28a060;
-      border-radius: 30px;
-      padding: 20px 30px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      color: black;
-      font-weight: bold;
-      font-size: 1rem;
-      cursor: pointer;
-      position: absolute;
-      top: 1rem;
-      left: 1rem;
-      margin-top: 1.4%;
+    #msg-carrinho {
+        font-size: 0.9em;
+        padding: 10px;
+        border-radius: var(--border-radius-sm);
+        text-align: center;
     }
-    .logo-container {
-      text-align: center;
-      margin-top: 20px;
-    }
-    .logo-container img {
-      height: 40px;
-    }
-    .search-bar {
-      margin: 1rem auto 0 auto;
-      display: flex;
-      justify-content: center;
-      position: relative;
-    }
-    .search-bar input {
-      width: 70%;
-      padding: 10px 40px 10px 20px;
-      border: none;
-      background: #f3f2e7;
-      border-radius: 20px;
-      font-size: 1rem;
-      margin-left: 269px;
-    }
-    .search-bar img.lupa {
-      position: absolute;
-      right: 14%;
-      top: 50%;
-      transform: translateY(-50%);
-      height: 20px;
-    }
-    .auth-section {
-      position: absolute;
-      top: 1rem;
-      right: 1rem;
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 10px;
-      margin-top: 1.4%;
-    }
-    .auth-links {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 0.9rem;
-    }
-    .auth-links a {
-      text-decoration: none;
-      color: black;
-      padding: 5px 10px;
-      border: 2px solid #28a060;
-      border-radius: 5px;
-    }
-    .icons {
-        width: -9%;
-        height: auto;
-        max-width: 10%;
-        max-height: 10%;
-    }
-    .icons img {
-      height: 40px;
-      width: auto;
-      margin-left: -119px;
-    }
-    .user-info img {
-      height: 50px;
-      width: auto;
-      margin-left: -139px;
-      margin-top: -13px;
-    }
-    .auth-buttons button {
-      padding: 8px 15px;
-      background-color: #28a060;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-    .auth-buttons button:last-child {
-      border: 2px solid #28a060;
-      background-color: transparent;
-      color: #2e7d32;
-    }
-    .auth-buttons button:last-child:hover {
-      background-color: #2e7d32;
-      color: white;
-      box-shadow: 0 0 10px rgba(46, 125, 50, 0.5);
-    }
-    .auth-buttons button:hover {
-      background-color: #1b5e20;
-    }
-    .footer-novo {
-  background: #1b2430;
-  color: #fff;
-  padding: 2.5rem 1rem 1rem 1rem;
-  margin-top: 2rem;
-}
-.footer-container {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 2rem;
-  max-width: 1100px;
-  margin: 0 auto;
-}
-.footer-col {
-  min-width: 180px;
-  flex: 1;
-}
-.footer-col h4 {
-  margin-bottom: 1rem;
-  color:rgb(255, 255, 255);
-}
-.footer-col a {
-  color: #cfd8dc;
-  text-decoration: none;
-  display: block;
-  margin-bottom: 0.5rem;
-  font-size: 1rem;
-  transition: color 0.2s;
-}
-.footer-col a:hover {
-  color: #28a060;
-}
-.footer-bottom {
-  text-align: center;
-  color: #aaa;
-  font-size: 0.95rem;
-  margin-top: 2rem;
-  border-top: 1px solid #333;
-  padding-top: 1rem;
-}
-footer p {
- color:rgb(156, 163, 175);
-;
-}
+    #msg-carrinho.alert-success { background-color: #d4edda; color: #155724;}
+    #msg-carrinho.alert-danger { background-color: #f8d7da; color: #721c24;}
 
-.category-list {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      height: 100%;
-      width: 300px;
-      background: white;
-      box-shadow: 2px 0 6px rgba(0, 0, 0, 0.2);
-      z-index: 1000;
-      overflow-y: auto;
-      padding: 1rem;
+    .product-description-section {
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 1px solid var(--cinza-claro);
+    }
+    .product-description-section h5 {
+        font-size: 1.2em;
+        color: var(--cinza-escuro);
+        font-weight: 600;
+        margin-bottom: 10px;
+    }
+    .product-description-section p {
+        font-size: 0.95em;
+        line-height: 1.8;
     }
 
-    .category-list img {
-      height: 30px; 
-      width: auto; 
-     
+    .qna-section {
+        margin-top: 40px;
+        padding: 30px;
+        background-color: var(--branco);
+        border-radius: var(--border-radius-lg);
+        border: 1px solid #eee;
     }
-
-    .category-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+    .qna-section h4 {
+        font-size: 1.5em;
+        color: var(--cinza-escuro);
+        font-weight: 600;
+        margin-bottom: 20px;
+        border-bottom: 2px solid var(--verde-claro-fundo);
+        padding-bottom: 10px;
     }
-
-    .category-header img {
-      height: 30px;
-      width: auto;
+    .qna-item {
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 1px dashed var(--cinza-claro);
     }
-
-    .close-btn {
-      font-size: 1.5rem;
-      font-weight: bold;
-      color: #28a060;
-      cursor: pointer;
-      margin-right: 10px;
-      margin-top: 5px;
+    .qna-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0;}
+    .qna-question strong { color: var(--cinza-escuro); font-weight: 600; }
+    .qna-question small.text-muted { font-size: 0.8em; color: #999; margin-left: 5px;}
+    .qna-answer {
+        margin-left: 20px;
+        margin-top: 8px;
+        padding: 10px;
+        background-color: var(--verde-claro-fundo);
+        border-radius: var(--border-radius-sm);
+        font-size: 0.9em;
     }
-
-    .close-btn:hover {
-      color: #1b5e20;
-    }
-
-    .category-list h3 {
-      text-align: center;
-      margin-bottom: 1rem;
-      font-size: 1.2rem;
-      color: #28a060;
-    }
-
-    .category-list ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-
-    .category-list ul li {
-      padding: 0.5rem 0;
-      border-bottom: 1px solid #ddd;
-      font-size: 1rem;
-      color: #333;
-      cursor: pointer;
-    }
-
-    .category-list ul li:last-child {
-      border-bottom: none;
-    }
-
-    .category-list ul li:hover {
-      color: #28a060;
-    }
-
-    .overlay {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.5);
-      z-index: 999;
-    }
-
-    .mt-4 h5{
-      font-weight: bold;
-    }
+    .qna-answer strong { color: var(--verde-escuro); }
     .btn-responder {
-      display: inline-block;
-      background: #28a060;
-      color: #fff;
-      border: none;
-      border-radius: 6px;
-      padding: 5px 18px;
-      font-size: 1rem;
-      font-weight: bold;
-      margin-left: 10px;
-      cursor: pointer;
-      transition: background 0.2s, color 0.2s, box-shadow 0.2s;
-      box-shadow: 0 2px 8px rgba(40,160,96,0.07);
-      vertical-align: middle;
+        background-color: var(--verde-claro-fundo);
+        color: var(--verde-escuro);
+        border: 1px solid var(--verde-claro-fundo);
+        padding: 6px 12px;
+        font-size: 0.85em;
+        border-radius: var(--border-radius-sm);
+        margin-left: 10px;
+        cursor: pointer;
     }
-    .btn-responder:hover, .btn-responder.active {
-      background: #1f804e;
-      color: #fff;
-      box-shadow: 0 4px 16px rgba(40,160,96,0.13);
+    .form-resposta-vendedor { margin-top: 10px; }
+    .form-resposta-vendedor textarea, 
+    #form-pergunta textarea {
+        width: 100%; padding: 10px; border-radius: var(--border-radius-md);
+        border: 1px solid #ccd0d5; font-size: 0.9em; margin-bottom:10px;
+        font-family: var(--font-principal); min-height: 70px;
     }
-    .form-resposta-animada {
-      animation: fadeInResposta 0.4s;
-      margin-top: 10px;
+    .form-resposta-vendedor .btn,
+    #form-pergunta .btn {
+        padding: 8px 18px;
+        font-size: 0.9em;
+        border: none;
+        border-radius: var(--border-radius-sm);
+        background: var(--verde);
+        color: #fff;
     }
-    @keyframes fadeInResposta {
-      from { opacity: 0; transform: translateY(-10px);}
-      to { opacity: 1; transform: translateY(0);}
+
+    .site-footer-bottom {
+        background-color: var(--cinza-escuro); color: #b0bec5;
+        padding: 70px 0 40px; font-size: 0.95em;
+    }
+    .footer-content-grid {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 45px; margin-bottom: 50px;
+        width: 90%; max-width: 1140px; margin: 0 auto 30px auto;
+    }
+    .footer-col h4 { font-size: 1.25em; color: var(--branco); font-weight: 600; margin-bottom: 20px; }
+    .footer-col p, .footer-col a { color: #b0bec5; text-decoration: none; margin-bottom: 10px; display: block; }
+    .footer-copyright { text-align: center; padding-top: 40px; border-top: 1px solid #4a5c6a; color: #78909c; width: 90%; max-width: 1140px; margin: 0 auto; }
+
+    @media (max-width: 992px) {
+        .header-center { flex-direction: column; align-items: stretch; gap: 10px; margin-left: 15px; margin-right: 15px;}
+        .site-header { padding-bottom: 10px; }
+        main { padding-top: 170px; }
+        .product-detail-container { flex-direction: column; }
+        .product-images, .product-info_column { flex: 1 1 100%; }
+    }
+    @media (max-width: 768px) {
+        .header-container { flex-wrap: wrap; justify-content: space-between; }
+        .site-header .logo { margin-bottom: 0; }
+        .header-center { width:100%; order: 3; margin-left:0; margin-right:0; padding-top: 10px; }
+        .header-actions { order: 2; }
+        main { padding-top: 190px; }
+        .product-images { flex-direction: column-reverse; }
+        .thumbnails { flex-direction: row; overflow-x: auto; max-height: none; padding-bottom:5px; padding-right:0; }
+        .thumbnail-img { width: 60px; height: 60px; }
+        .product-title { font-size: 1.5em; }
+        .product-price { font-size: 1.6em; }
+    }
+    @media (max-width: 480px) {
+        .header-actions { gap: 10px; }
+        .header-actions img.action-icon { height: 24px; }
+        .auth-buttons-header .btn { padding: 6px 10px; font-size: 0.8em; }
+        main { padding-top: 180px; }
+        .buy-box .btn { font-size: 0.9em; }
     }
   </style>
 </head>
 <body>
-  <div id="overlay" class="overlay" onclick="toggleCategoryList()"></div>
-  <header>
-    <div class="menu-btn" onclick="toggleCategoryList()"><span>☰</span> CATEGORIAS</div>
-    <div id="category-list" class="category-list">
-      <div class="category-header">
-        <img src="img/logo2.png" alt="Logo"/>
-        <span class="close-btn" onclick="toggleCategoryList()">X</span>
+
+  <header class="site-header">
+    <div class="header-container">
+      <a href="loja.php"> <img src="img/logo2.png" alt="Circuito Sustentável Logo" class="logo" />
+      </a>
+
+      <div class="header-center">
+
       </div>
-      <h3>CATEGORIAS</h3>
-      <ul>
-        <li>Processadores</li>
-        <li>Placas de Vídeo</li>
-        <li>Memórias RAM</li>
-        <li>Placas-Mãe</li>
-        <li>Fontes de Alimentação</li>
-        <li>Coolers</li>
-        <li>Gabinetes</li>
-        <li>Armazenamento (HDD/SSD)</li>
-      </ul>
-    </div>
-    <div class="logo-container">
-      <a href="loja.php"><img src="img/logo2.png" alt="Circuito Sustentável Logo" /></a>
-    </div>
-    <div class="search-bar">
-      <form method="get" action="loja.php" style="width:100%;">
-        <input type="text" name="busca" placeholder="Pesquisar produtos..." />
-        <button type="submit" style="position:absolute;right:14%;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;">
-          <img src="img/lupa.png" alt="Pesquisar" class="lupa" />
-        </button>
-      </form>
-    </div>
-    <div class="auth-section">
-      <?php if (isset($_SESSION['usuario_id']) || isset($_SESSION['vendedor_id'])): ?>
-        <div class="user-info">
-          <a href="<?= isset($_SESSION['usuario_id']) ? 'usuario.php' : 'vendedor.php' ?>">
-            <img src="img/user.png" alt="Usuário" />
-          </a>
-        </div>
-      <?php else: ?>
-        <div class="auth-buttons">
-          <button onclick="location.href='cadastro.php'">Registrar</button>
-          <button onclick="location.href='login.php'">Iniciar Sessão</button>
-        </div>
-      <?php endif; ?>
-      <div class="icons">
-        <a href="c+.php"><img src="img/C+.png" alt=""></a>
-        <a href="<?php
-          if (isset($_SESSION['vendedor_id'])) echo 'carrinho_vendedor.php';
-          else echo 'carrinho.php';
-        ?>">
-          <?php
-          $mostrar_carrinho_vazio = false;
-          if (isset($_SESSION['usuario_id'])) {
-              $id_cliente = $_SESSION['usuario_id'];
-              $sql_carrinho = "SELECT id_carrinho FROM Carrinho WHERE id_cliente = '$id_cliente'";
-              $res_carrinho = $conexao->query($sql_carrinho);
-              $tem_item = false;
-              if ($res_carrinho && $res_carrinho->num_rows > 0) {
-                  while ($row_carrinho = $res_carrinho->fetch_assoc()) {
-                      $id_carrinho = $row_carrinho['id_carrinho'];
-                      $sql_itens = "SELECT 1 FROM Item_Carrinho WHERE id_carrinho = '$id_carrinho' LIMIT 1";
-                      $res_itens = $conexao->query($sql_itens);
-                      if ($res_itens && $res_itens->num_rows > 0) { $tem_item = true; break; }
-                  }
-              }
-              if (!$tem_item) $mostrar_carrinho_vazio = true;
-          } elseif (isset($_SESSION['vendedor_id'])) {
-              $id_vendedor = $_SESSION['vendedor_id'];
-              $sql_carrinho = "SELECT id_carrinho FROM Carrinho WHERE id_vendedor = '$id_vendedor' AND id_cliente IS NULL";
-              $res_carrinho = $conexao->query($sql_carrinho);
-              $tem_item = false;
-              if ($res_carrinho && $res_carrinho->num_rows > 0) {
-                  while ($row_carrinho = $res_carrinho->fetch_assoc()) {
-                      $id_carrinho = $row_carrinho['id_carrinho'];
-                      $sql_itens = "SELECT 1 FROM Item_Carrinho WHERE id_carrinho = '$id_carrinho' LIMIT 1";
-                      $res_itens = $conexao->query($sql_itens);
-                      if ($res_itens && $res_itens->num_rows > 0) { $tem_item = true; break; }
-                  }
-              }
-              if (!$tem_item) $mostrar_carrinho_vazio = true;
-          }
-          ?>
-          <img src="<?= $mostrar_carrinho_vazio ? 'img/carrinho_sem.png' : 'img/carrinho.png' ?>" alt="">
+
+      <div class="header-actions">
+        <?php if ($usuario_logado): ?>
+            <a href="<?= htmlspecialchars($link_perfil) ?>" aria-label="Meu Perfil">
+                <img src="img/user.png" alt="Meu Perfil" class="action-icon" />
+            </a>
+        <?php else: ?>
+            <div class="auth-buttons-header">
+            <button class="btn btn-outline btn-sm" onclick="location.href='login.php'">Entrar</button>
+            <button class="btn btn-primary btn-sm" onclick="location.href='cadastro.php'">Registrar</button>
+            </div>
+        <?php endif; ?>
+        <a href="rs.php" aria-label="C+ Moedas">
+            <img src="img/C+.png" alt="C+ Moedas" class="action-icon">
+        </a>
+        <a href="<?= htmlspecialchars($link_carrinho_header) ?>" aria-label="Carrinho de Compras">
+            <img src="<?= htmlspecialchars($imagem_carrinho) ?>" alt="Carrinho" class="action-icon">
         </a>
       </div>
     </div>
   </header>
-  <script>
-    function toggleCategoryList() {
-      const overlay = document.getElementById('overlay');
-      const categoryList = document.getElementById('category-list');
-      const isVisible = categoryList.style.display === 'block';
-      categoryList.style.display = isVisible ? 'none' : 'block';
-      overlay.style.display = isVisible ? 'none' : 'block';
-    }
-  </script>
-  <div class="container container-amazon d-flex gap-5">
-    <div class="left-column">
-      <div class="d-flex gap-3">
-        <div class="d-flex flex-column">
-          <?php foreach ($imagens as $img): ?>
-            <img src="<?= $img ?>" class="thumbnail-img" onclick="document.getElementById('mainImage').src=this.src">
-          <?php endforeach; ?>
+
+  <main>
+    <div class="container-page">
+        <div class="product-detail-container">
+            <div class="product-images">
+                <div class="thumbnails">
+                    <?php if (!empty($imagens)): ?>
+                        <?php foreach ($imagens as $i => $img_thumb_path): ?>
+                            <img src="<?= htmlspecialchars($img_thumb_path) ?>" 
+                                 class="thumbnail-img <?= ($i == 0) ? 'active' : '' ?>" 
+                                 alt="Thumbnail <?= $i + 1 ?> do produto <?= htmlspecialchars($produto['nome']) ?>"
+                                 onclick="document.getElementById('mainImage').src=this.src; document.querySelectorAll('.thumbnail-img').forEach(t => t.classList.remove('active')); this.classList.add('active');">
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                         <img src="img/sem-imagem.png" class="thumbnail-img active" alt="Imagem indisponível">
+                    <?php endif; ?>
+                </div>
+                <div class="main-image-container">
+                    <img id="mainImage" src="<?= $img_principal ?>" alt="Imagem principal do produto <?= htmlspecialchars($produto['nome']) ?>" class="main-img">
+                </div>
+            </div>
+
+            <div class="product-info-column">
+                <h1 class="product-title"><?= htmlspecialchars($produto['nome']) ?></h1>
+                <p class="product-vendor">Vendido e entregue por: <a href="#"><?= htmlspecialchars($produto['nome_vendedor']) ?></a></p>
+                <hr style="margin: 15px 0; border-color: var(--cinza-claro);">
+                <div class="product-price">R$ <?= number_format($produto['preco'], 2, ',', '.') ?></div>
+                <div class="product-stock <?= $produto['estoque'] > 0 ? 'in-stock' : 'out-of-stock' ?>">
+                    <?= $produto['estoque'] > 0 ? ($produto['estoque'] < 10 ? "Restam apenas {$produto['estoque']} unidades!" : 'Em estoque') : 'Produto indisponível' ?>
+                </div>
+                
+                <div class="buy-box">
+                    <!-- ALTERA O FORMULÁRIO PARA USAR O ID E NOMES ESPERADOS PELO JS ANTIGO -->
+                    <form method="post" id="form-carrinho">
+                        <input type="hidden" name="id_produto" value="<?= $id_produto ?>">
+                        <label for="quantidade">Quantidade:</label>
+                        <input type="number" class="form-control form-control-sm" style="width:80px; display:inline-block; margin-right:10px;" 
+                               id="quantidade" name="quantidade" min="1" 
+                               max="<?= $produto['estoque'] > 0 ? $produto['estoque'] : '1' ?>" value="1" required 
+                               <?= $produto['estoque'] == 0 ? 'disabled' : '' ?>>
+                        <br><br>
+                        <button type="submit" class="btn btn-add-cart" name="add_carrinho" <?= $produto['estoque'] == 0 ? 'disabled' : '' ?>>Adicionar ao carrinho</button>
+                        <button type="submit" class="btn btn-primary" name="comprar" <?= $produto['estoque'] == 0 ? 'disabled' : '' ?>>Comprar Agora</button>
+                    </form>
+                    <div id="msg-carrinho" style="display:none; margin-top:15px;" class="alert"></div>
+                </div>
+            </div>
         </div>
-        <div class="flex-fill">
-          <img id="mainImage" src="<?= $img_principal ?>" class="main-img">
+
+        <div class="product-description-section">
+            <h5>Detalhes do produto</h5>
+            <p><?= nl2br(htmlspecialchars($produto['descricao'])) ?></p>
         </div>
-      </div>
-    </div>
-    <div class="right-column">
-      <h1 class="product-title"><?= htmlspecialchars($produto['nome']) ?></h1>
-      <div class="rating">★★★★★ <span class="text-muted">(123)</span></div>
-      <hr>
-      <div class="price">R$ <?= number_format($produto['preco'], 2, ',', '.') ?></div>
-      <div class="stock"><?= $produto['estoque'] > 0 ? 'Em estoque' : 'Indisponível' ?></div>
-      <div class="buy-box mt-3">
-        <p><strong>Vendidos por:</strong> <?= htmlspecialchars($produto['nome_vendedor']) ?></p>
-        <form method="post" id="form-carrinho">
-          <input type="hidden" name="id_produto" value="<?= $id_produto ?>">
-          <input type="number" name="quantidade" min="1" max="<?= $produto['estoque'] ?>" value="1" required <?= $produto['estoque'] == 0 ? 'disabled' : '' ?>>
-          <button type="submit" class="btn buy-btn" name="add_carrinho" <?= $produto['estoque'] == 0 ? 'disabled' : '' ?>>Adicionar ao carrinho</button>
-          <button type="submit" class="btn buy-btn" name="comprar" style="background:#28a060;color:#fff;" <?= $produto['estoque'] == 0 ? 'disabled' : '' ?>>Comprar Agora</button>
-        </form>
-        <div id="msg-carrinho" style="display:none;margin-top:10px;" class="alert alert-success"></div>
-      </div>
-      <div class="mt-4">
-        <h5>Detalhes do produto:</h5>
-        <p><?= nl2br(htmlspecialchars($produto['descricao'])) ?></p>
-      </div>
-    </div>
-  </div>
-  <div class="container mt-5">
-    <h4>Perguntas e Respostas</h4>
-    <hr>
-    <?php if ($perguntas): foreach ($perguntas as $p): ?>
-      <div class="mb-3" id="pergunta-<?= $p['id_pergunta'] ?>">
-        <strong><?= htmlspecialchars($p['nome']) ?>:</strong> <?= htmlspecialchars($p['texto']) ?><br>
-        <small class="text-muted"><?= date('d/m/Y', strtotime($p['data'])) ?></small>
-        <?php if (!empty($respostas[$p['id_pergunta']])): $resp = $respostas[$p['id_pergunta']]; ?>
-          <div style="margin-left:20px;margin-top:5px;">
-            <span style="color:#1f804e;font-weight:bold;">Resposta do vendedor:</span>
-            <?= htmlspecialchars($resp['texto']) ?>
-            <br>
-            <small class="text-muted"><?= $resp['nome'] ? htmlspecialchars($resp['nome']) . ' - ' : '' ?><?= date('d/m/Y', strtotime($resp['data'])) ?></small>
-          </div>
-        <?php endif; ?>
-        <?php if (
-          isset($_SESSION['vendedor_id'], $produto['id_vendedor']) &&
-          $_SESSION['vendedor_id'] == $produto['id_vendedor'] &&
-          empty($respostas[$p['id_pergunta']])
-        ): ?>
-          <button class="btn-responder<?= ($pergunta_para_responder == $p['id_pergunta']) ? ' active' : '' ?>"
-            onclick="mostrarFormResposta(<?= $p['id_pergunta'] ?>, event)">Responder</button>
-          <div id="form-resposta-<?= $p['id_pergunta'] ?>" style="display:none;">
-            <form method="post" class="form-resposta-animada form-resposta-vendedor">
-              <input type="hidden" name="id_pergunta" value="<?= $p['id_pergunta'] ?>">
-              <textarea name="resposta" class="form-control" placeholder="Responder..." required></textarea>
-              <button type="submit" class="btn btn-success mt-2">Responder</button>
+
+        <div class="qna-section" id="secao-perguntas">
+            <h4>Perguntas e Respostas</h4>
+            <?php if ($perguntas): foreach ($perguntas as $p): ?>
+            <div class="qna-item" id="pergunta-<?= $p['id_pergunta'] ?>">
+                <p class="qna-question"><strong><?= htmlspecialchars($p['nome_cliente']) ?>:</strong> <?= htmlspecialchars($p['texto']) ?> <small class="text-muted"><?= date('d/m/Y H:i', strtotime($p['data'])) ?></small></p>
+                <?php if (!empty($respostas[$p['id_pergunta']])): $resp = $respostas[$p['id_pergunta']]; ?>
+                <div class="qna-answer">
+                    <p><strong><?= htmlspecialchars($resp['nome_vendedor_resposta'] ?? 'Vendedor') ?>:</strong> <?= htmlspecialchars($resp['texto']) ?> <small class="text-muted"><?= date('d/m/Y H:i', strtotime($resp['data'])) ?></small></p>
+                </div>
+                <?php endif; ?>
+                <?php if (isset($_SESSION['vendedor_id'], $produto['id_vendedor']) && $_SESSION['vendedor_id'] == $produto['id_vendedor'] && empty($respostas[$p['id_pergunta']])): ?>
+                <button class="btn-responder<?= ($pergunta_para_responder == $p['id_pergunta']) ? ' active' : '' ?>"
+                        onclick="mostrarFormResposta(<?= $p['id_pergunta'] ?>, event)">Responder</button>
+                <div id="form-resposta-<?= $p['id_pergunta'] ?>" style="display:none;">
+                    <form method="post" class="form-resposta-vendedor">
+                    <input type="hidden" name="id_pergunta" value="<?= $p['id_pergunta'] ?>">
+                    <textarea name="resposta" placeholder="Sua resposta..." required></textarea>
+                    <button type="submit" class="btn btn-primary btn-sm">Enviar Resposta</button>
+                    </form>
+                </div>
+                <?php endif; ?>
+            </div>
+            <?php endforeach; else: ?>
+            <p>Nenhuma pergunta sobre este produto ainda. Seja o primeiro!</p>
+            <?php endif; ?>
+
+            <?php if (isset($_SESSION['usuario_id'])): ?>
+            <form method="post" class="mt-4" id="form-pergunta" style="margin-top: 30px;">
+                <h5>Faça sua pergunta</h5>
+                <textarea name="pergunta" placeholder="Escreva sua pergunta aqui..." required></textarea>
+                <button type="submit" class="btn btn-primary">Enviar Pergunta</button>
             </form>
-          </div>
-        <?php endif; ?>
-      </div>
-    <?php endforeach; else: ?>
-      <p class="text-muted">Nenhuma pergunta ainda.</p>
-    <?php endif; ?>
-    <?php if (isset($_SESSION['usuario_id'])): ?>
-      <form method="post" class="mt-4" id="form-pergunta">
-        <textarea name="pergunta" class="form-control" placeholder="Faça uma pergunta sobre o produto..." required></textarea>
-        <button type="submit" class="btn btn-success mt-2">Enviar Pergunta</button>
-      </form>
-      <script>
-        document.getElementById('form-pergunta').addEventListener('submit', function(e) {
-          e.preventDefault();
-          var formData = new FormData(this);
-          var xhr = new XMLHttpRequest();
-          xhr.open('POST', window.location.href, true);
-          xhr.onload = function() { if (xhr.status === 200) location.reload(); };
-          xhr.send(formData);
-        });
-      </script>
-    <?php else: ?>
-      <p style="color:#1f804e;">Faça login para perguntar sobre o produto.</p>
-    <?php endif; ?>
-  </div>
-  <footer class="footer-novo">
-    <div class="footer-container">
+            <?php elseif (!isset($_SESSION['vendedor_id'])): // Não mostra para vendedor logado, apenas para não-logado ou cliente ?>
+            <p style="margin-top: 30px; font-weight:500;">
+                <a href="login.php?redirect=<?= urlencode("aba_produto.php?id=$id_produto") ?>">Faça login</a> para fazer uma pergunta.
+            </p>
+            <?php endif; ?>
+        </div>
+    </div>
+  </main>
+
+  <footer class="site-footer-bottom">
+    <div class="container footer-content-grid">
       <div class="footer-col">
         <h4>Circuito Sustentável</h4>
         <p>Oferecendo solução para o meio ambiente e seu bolso.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Navegue</h4>
+        <a href="tela_inicial.php">Início</a>
+        <a href="loja.php">Loja</a>
+        <a href="<?= htmlspecialchars($link_perfil) ?>">Meu Perfil</a>
       </div>
       <div class="footer-col">
         <h4>Contato</h4>
@@ -634,43 +753,151 @@ footer p {
         <p>📞 (85) 992933310</p>
       </div>
     </div>
-    <div class="footer-bottom">
-      &copy; 2025 Circuito Sustentável Inc. Todos os direitos reservados.
+        <p>📞 (85) 992933310</p>
+      </div>
+    </div>
+    <div class="footer-copyright">
+      &copy; <?php echo date("Y"); ?> Circuito Sustentável Inc. Todos os direitos reservados.
     </div>
   </footer>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
   <script>
-    function mostrarFormResposta(id, evt) {
-      evt.preventDefault();
-      document.querySelectorAll('[id^="form-resposta-"]').forEach(div => div.style.display = 'none');
-      document.querySelectorAll('.btn-responder').forEach(btn => btn.classList.remove('active'));
-      var formDiv = document.getElementById('form-resposta-' + id);
+    // Header Scroll Effect
+    const header = document.querySelector('.site-header');
+    if (header) {
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 50) {
+                header.classList.add('scrolled');
+            } else {
+                header.classList.remove('scrolled');
+            }
+        });
+    }
+
+    // Lógica para thumbnails da imagem do produto
+    const mainImage = document.getElementById('mainImage');
+    const thumbnails = document.querySelectorAll('.thumbnail-img');
+    thumbnails.forEach(thumb => {
+        thumb.addEventListener('click', function() {
+            if (mainImage) mainImage.src = this.src;
+            thumbnails.forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+        });
+    });
+
+    // Lógica para mostrar formulário de resposta do vendedor
+    function mostrarFormResposta(idPergunta, event) {
+      if (event) event.preventDefault();
+      // Esconde todos os outros formulários de resposta
+      document.querySelectorAll('[id^="form-resposta-"]').forEach(div => {
+        if (div.id !== `form-resposta-${idPergunta}`) {
+            div.style.display = 'none';
+        }
+      });
+      // Remove a classe 'active' de todos os outros botões
+      document.querySelectorAll('.btn-responder').forEach(btn => {
+        if (btn !== event.target) {
+            btn.classList.remove('active');
+        }
+      });
+
+      const formDiv = document.getElementById('form-resposta-' + idPergunta);
       if (formDiv) {
-        formDiv.style.display = 'block';
-        if (evt.target) evt.target.classList.add('active');
-        var perguntaDiv = document.getElementById('pergunta-' + id);
-        if (perguntaDiv) perguntaDiv.scrollIntoView({behavior: 'smooth', block: 'center'});
+        const isVisible = formDiv.style.display === 'block';
+        formDiv.style.display = isVisible ? 'none' : 'block';
+        if (event && event.target) {
+            event.target.classList.toggle('active', !isVisible);
+        }
+        if (!isVisible) { // Se está abrindo
+            const perguntaDiv = document.getElementById('pergunta-' + idPergunta);
+            if (perguntaDiv) {
+                // Rola para a pergunta de forma suave
+                setTimeout(() => { // Delay para o display block ser aplicado
+                    perguntaDiv.scrollIntoView({behavior: 'smooth', block: 'center'});
+                }, 50);
+            }
+        }
       }
+      // Atualiza a URL sem recarregar a página
       if (history.pushState) {
         var url = new URL(window.location);
         url.searchParams.set('id', '<?= $id_produto ?>');
-        url.searchParams.set('responder', id);
-        history.replaceState(null, '', url);
+        if (formDiv.style.display === 'block') {
+            url.searchParams.set('responder', idPergunta);
+        } else {
+            url.searchParams.delete('responder');
+        }
+        history.replaceState({path: url.href}, '', url.href);
       }
     }
-    window.onload = function() {
-      var responder = '<?= $pergunta_para_responder ?>';
-      if (responder) mostrarFormResposta(responder, {preventDefault:function(){}, target:document.querySelector('.btn-responder.active')});
-    };
+
+    // Verifica se há um parâmetro 'responder' na URL ao carregar a página
+    window.addEventListener('load', function() { // Alterado de window.onload para addEventListener
+      const urlParams = new URLSearchParams(window.location.search);
+      const responderId = urlParams.get('responder');
+      if (responderId) {
+        const responderButton = document.querySelector(`.btn-responder[onclick*="mostrarFormResposta(${responderId}, event)"]`);
+        if (responderButton) {
+            // Simula um clique no botão para abrir o formulário e posicionar a tela
+            // Usar um pequeno timeout para garantir que tudo está carregado
+            setTimeout(() => {
+                 responderButton.click(); // Simula o clique
+            }, 100);
+        }
+      }
+       // Scroll para a mensagem de pergunta ou resposta enviada
+        if (urlParams.has('pergunta_enviada') || urlParams.has('resposta_enviada')) {
+            const qnaSection = document.getElementById('secao-perguntas');
+            if (qnaSection) {
+                setTimeout(() => { // Timeout para garantir renderização
+                    qnaSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 200);
+            }
+        }
+    });
+
+    // AJAX para enviar resposta do vendedor
     document.querySelectorAll('.form-resposta-vendedor').forEach(function(form) {
       form.addEventListener('submit', function(e) {
         e.preventDefault();
+        var formData = new FormData(form);
         var xhr = new XMLHttpRequest();
-        xhr.open('POST', window.location.href, true);
-        xhr.onload = function() { if (xhr.status === 200) location.reload(); };
-        xhr.send(new FormData(form));
+        xhr.open('POST', window.location.href, true); // Envia para a mesma página
+        xhr.onload = function() {
+          if (xhr.status === 200) {
+            // Idealmente, o PHP retornaria JSON para atualizar dinamicamente.
+            // Por agora, apenas recarrega para mostrar a resposta.
+            // Adicionar &resposta_enviada=1&pergunta_id=ID_DA_PERGUNTA para scroll
+            const idPergunta = formData.get('id_pergunta');
+            window.location.href = `aba_produto.php?id=<?= $id_produto ?>&resposta_enviada=1#pergunta-${idPergunta}`;
+          } else {
+            alert('Erro ao enviar resposta.');
+          }
+        };
+        xhr.send(formData);
       });
     });
+    
+    // AJAX para enviar pergunta do cliente
+    const formPergunta = document.getElementById('form-pergunta');
+    if(formPergunta) {
+        formPergunta.addEventListener('submit', function(e) {
+          e.preventDefault();
+          var formData = new FormData(this);
+          var xhr = new XMLHttpRequest();
+          xhr.open('POST', window.location.href, true);
+          xhr.onload = function() { 
+            if (xhr.status === 200) {
+                window.location.href = `aba_produto.php?id=<?= $id_produto ?>&pergunta_enviada=1#secao-perguntas`;
+            } else {
+                alert('Erro ao enviar pergunta.');
+            }
+          };
+          xhr.send(formData);
+        });
+    }
+
+    // SUBSTITUIR LÓGICA AJAX DO CARRINHO PELO SCRIPT ANTIGO
     document.getElementById('form-carrinho').addEventListener('submit', function(e) {
       var btn = document.activeElement;
       if (btn && btn.name === 'add_carrinho') {
@@ -690,53 +917,20 @@ footer p {
         };
         xhr.send(formData);
       }
+      // Se for "Comprar Agora", submit normal
+    });
+
+    // --- LÓGICA PARA "COMPRAR AGORA" (redireciona para pagamento.php) ---
+    document.getElementById('form-carrinho').addEventListener('submit', function(e) {
+      var btn = document.activeElement;
+      if (btn && btn.name === 'comprar') {
+        e.preventDefault();
+        var formData = new FormData(this);
+        var id_produto_compra = formData.get('id_produto');
+        var quantidade_compra = formData.get('quantidade');
+        window.location.href = 'pagamento.php?id_produto=' + id_produto_compra + '&quantidade=' + quantidade_compra;
+      }
     });
   </script>
 </body>
 </html>
-<?php
-// AJAX adicionar ao carrinho
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_add_carrinho'])) {
-    if (isset($_SESSION['usuario_id'])) {
-        $id_cliente = $_SESSION['usuario_id'];
-        $is_vendedor = false;
-    } elseif (isset($_SESSION['vendedor_id'])) {
-        $id_vendedor_logado = $_SESSION['vendedor_id'];
-        $is_vendedor = true;
-    } else exit;
-
-    $id_produto_post = isset($_POST['id_produto']) ? intval($_POST['id_produto']) : 0;
-    $quantidade = isset($_POST['quantidade']) ? intval($_POST['quantidade']) : 1;
-    $sql_prod = "SELECT id_vendedor FROM Produto WHERE id_produto = '$id_produto_post'";
-    $res_prod = $conexao->query($sql_prod);
-    if ($res_prod && $res_prod->num_rows > 0) {
-        $row_prod = $res_prod->fetch_assoc();
-        $id_vendedor_produto = $row_prod['id_vendedor'];
-        if (!$is_vendedor) {
-            $sql_carrinho = "SELECT id_carrinho FROM Carrinho WHERE id_cliente = '$id_cliente' AND id_vendedor = '$id_vendedor_produto' LIMIT 1";
-            $res_carrinho = $conexao->query($sql_carrinho);
-            $id_carrinho = ($res_carrinho && $res_carrinho->num_rows > 0) ? $res_carrinho->fetch_assoc()['id_carrinho'] : null;
-            if (!$id_carrinho) {
-                $conexao->query("INSERT INTO Carrinho (id_cliente, id_vendedor) VALUES ('$id_cliente', '$id_vendedor_produto')");
-                $id_carrinho = $conexao->insert_id;
-            }
-        } else {
-            $sql_carrinho = "SELECT id_carrinho FROM Carrinho WHERE id_cliente IS NULL AND id_vendedor = '$id_vendedor_logado' LIMIT 1";
-            $res_carrinho = $conexao->query($sql_carrinho);
-            $id_carrinho = ($res_carrinho && $res_carrinho->num_rows > 0) ? $res_carrinho->fetch_assoc()['id_carrinho'] : null;
-            if (!$id_carrinho) {
-                $conexao->query("INSERT INTO Carrinho (id_cliente, id_vendedor) VALUES (NULL, '$id_vendedor_logado')");
-                $id_carrinho = $conexao->insert_id;
-            }
-        }
-        $sql_item = "SELECT quantidade FROM Item_Carrinho WHERE id_carrinho = '$id_carrinho' AND id_produto = '$id_produto_post'";
-        $res_item = $conexao->query($sql_item);
-        if ($res_item && $res_item->num_rows > 0) {
-            $nova_qtd = $res_item->fetch_assoc()['quantidade'] + $quantidade;
-            $conexao->query("UPDATE Item_Carrinho SET quantidade = '$nova_qtd' WHERE id_carrinho = '$id_carrinho' AND id_produto = '$id_produto_post'");
-        } else {
-            $conexao->query("INSERT INTO Item_Carrinho (id_carrinho, id_produto, quantidade) VALUES ('$id_carrinho', '$id_produto_post', '$quantidade')");
-        }
-    }
-    exit;
-}

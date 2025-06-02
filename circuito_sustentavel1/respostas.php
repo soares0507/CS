@@ -10,7 +10,7 @@ if (!isset($_SESSION['vendedor_id'])) {
 
 $id_vendedor = $_SESSION['vendedor_id'];
 
-// Processa exclusão de resposta
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['excluir_resposta'], $_POST['id_pergunta'])) {
     $id_pergunta = intval($_POST['id_pergunta']);
     $conexao->query("DELETE FROM Resposta WHERE id_pergunta = '$id_pergunta' AND id_vendedor = '$id_vendedor'");
@@ -18,7 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['excluir_resposta'], $
     exit;
 }
 
-// Processa envio de resposta
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id_pergunta'], $_POST['resposta_texto']) && !isset($_POST['excluir_resposta'])) {
     $id_pergunta = intval($_POST['id_pergunta']);
     $resposta_texto = trim($_POST['resposta_texto']);
@@ -28,13 +28,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id_pergunta'], $_POST
         $stmt->bind_param("iis", $id_pergunta, $id_vendedor, $resposta_texto);
         $stmt->execute();
         $stmt->close();
-        // Redireciona para evitar reenvio do formulário
+        
         header("Location: respostas.php");
         exit;
     }
 }
 
-// Busca todas as perguntas feitas para produtos do vendedor, junto com as respostas (se houver)
+
 $sql = "
 SELECT 
     p.id_pergunta,

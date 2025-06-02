@@ -83,7 +83,19 @@ CREATE TABLE Postagem (
     id_vendedor INT NULL,
     titulo VARCHAR(255),
     conteudo TEXT,
+    imagem VARCHAR(255), -- Novo campo para imagem
     data DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente),
+    FOREIGN KEY (id_vendedor) REFERENCES Vendedor(id_vendedor)
+);
+CREATE TABLE Curtida (
+    id_curtida INT AUTO_INCREMENT PRIMARY KEY,
+    id_postagem INT NOT NULL,
+    id_cliente INT NULL,
+    id_vendedor INT NULL,
+    data DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_like (id_postagem, id_cliente, id_vendedor),
+    FOREIGN KEY (id_postagem) REFERENCES Postagem(id_postagem),
     FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente),
     FOREIGN KEY (id_vendedor) REFERENCES Vendedor(id_vendedor)
 );

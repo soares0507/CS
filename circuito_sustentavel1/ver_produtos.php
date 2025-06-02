@@ -10,17 +10,57 @@ if (!isset($_SESSION['vendedor_id'])) {
 
 $id_vendedor = $_SESSION['vendedor_id'];
 
-// Exclusão de produto
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['excluir_produto'])) {
     $id_produto_excluir = intval($_POST['id_produto']);
-    // Exclui o produto apenas se for do vendedor logado
+
+    // Remover itens do carrinho que usam este produto
+    $stmt_del_carrinho = $conexao->prepare("DELETE FROM item_carrinho WHERE id_produto = ?");
+    $stmt_del_carrinho->bind_param("i", $id_produto_excluir);
+    $stmt_del_carrinho->execute();
+    $stmt_del_carrinho->close();
+
+    // Remover itens de pedidos que usam este produto
+    $stmt_del_item_pedido = $conexao->prepare("DELETE FROM item_pedido WHERE id_produto = ?");
+    $stmt_del_item_pedido->bind_param("i", $id_produto_excluir);
+    $stmt_del_item_pedido->execute();
+    $stmt_del_item_pedido->close();
+
+    // Remover respostas relacionadas às perguntas deste produto
+    $stmt_perguntas = $conexao->prepare("SELECT id_pergunta FROM pergunta WHERE id_produto = ?");
+    $stmt_perguntas->bind_param("i", $id_produto_excluir);
+    $stmt_perguntas->execute();
+    $result_perguntas = $stmt_perguntas->get_result();
+    $ids_perguntas = [];
+    while ($row = $result_perguntas->fetch_assoc()) {
+        $ids_perguntas[] = $row['id_pergunta'];
+    }
+    $stmt_perguntas->close();
+
+    if (!empty($ids_perguntas)) {
+        // Monta uma string de interrogações para o IN (?, ?, ...)
+        $placeholders = implode(',', array_fill(0, count($ids_perguntas), '?'));
+        $types = str_repeat('i', count($ids_perguntas));
+        $stmt_del_respostas = $conexao->prepare("DELETE FROM resposta WHERE id_pergunta IN ($placeholders)");
+        $stmt_del_respostas->bind_param($types, ...$ids_perguntas);
+        $stmt_del_respostas->execute();
+        $stmt_del_respostas->close();
+    }
+
+    // Remover perguntas relacionadas ao produto
+    $stmt_del_pergunta = $conexao->prepare("DELETE FROM pergunta WHERE id_produto = ?");
+    $stmt_del_pergunta->bind_param("i", $id_produto_excluir);
+    $stmt_del_pergunta->execute();
+    $stmt_del_pergunta->close();
+    
+    // Agora sim, pode deletar o produto
     $stmt_del = $conexao->prepare("DELETE FROM Produto WHERE id_produto = ? AND id_vendedor = ?");
     $stmt_del->bind_param("ii", $id_produto_excluir, $id_vendedor);
     $stmt_del->execute();
     $stmt_del->close();
 }
 
-// Busca produtos do vendedor
+
 $sql = "SELECT * FROM Produto WHERE id_vendedor = ?";
 $stmt = $conexao->prepare($sql);
 $stmt->bind_param("i", $id_vendedor);
@@ -28,7 +68,7 @@ $stmt->execute();
 $result = $stmt->get_result();
 $produtos = [];
 while ($row = $result->fetch_assoc()) {
-    // Decodifica imagens (JSON ou lista)
+   
     $imagens = [];
     if (!empty($row['imagens'])) {
         $imagens = json_decode($row['imagens'], true);

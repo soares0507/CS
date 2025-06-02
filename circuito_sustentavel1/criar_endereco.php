@@ -2,10 +2,12 @@
 session_start();
 include 'conexao.php';
 
-$is_cliente = isset($_SESSION['usuario_id']);
-$is_vendedor = isset($_SESSION['vendedor_id']);
+$erro = '';
 
-if (!$is_cliente && !$is_vendedor) {
+$e_cliente = isset($_SESSION['usuario_id']);
+$e_vendedor = isset($_SESSION['vendedor_id']);
+
+if (!$e_cliente && !$e_vendedor) {
     header('Location: login.php');
     exit;
 }
@@ -19,20 +21,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $estado = $_POST['estado'];
     $cep = $_POST['cep'];
 
-    if ($is_cliente) {
+    if ($e_cliente) {
         $id_cliente = $_SESSION['usuario_id'];
-        $sql = "INSERT INTO Endereco (id_cliente, rua, numero, complemento, bairro, cidade, estado, cep) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-        $stmt = $conexao->prepare($sql);
-        $stmt->bind_param("isssssss", $id_cliente, $rua, $numero, $complemento, $bairro, $cidade, $estado, $cep);
+        $sql = "INSERT INTO Endereco (id_cliente, rua, numero, complemento, bairro, cidade, estado, cep) VALUES ('$id_cliente', '$rua', '$numero', '$complemento', '$bairro', '$cidade', '$estado', '$cep')";
     } else {
         $id_vendedor = $_SESSION['vendedor_id'];
-        $sql = "INSERT INTO Endereco (id_vendedor, rua, numero, complemento, bairro, cidade, estado, cep) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-        $stmt = $conexao->prepare($sql);
-        $stmt->bind_param("isssssss", $id_vendedor, $rua, $numero, $complemento, $bairro, $cidade, $estado, $cep);
+        $sql = "INSERT INTO Endereco (id_vendedor, rua, numero, complemento, bairro, cidade, estado, cep) VALUES ('$id_vendedor', '$rua', '$numero', '$complemento', '$bairro', '$cidade', '$estado', '$cep')";
     }
 
-    if ($stmt->execute()) {
-        header('Location: ' . ($is_cliente ? 'usuario.php' : 'vendedor.php'));
+    if ($conexao->query($sql)) {
+        if ($e_cliente) {
+            header('Location: usuario.php');
+        } else {
+            header('Location: vendedor.php');
+        }
         exit;
     } else {
         $erro = "Erro ao cadastrar endereço.";

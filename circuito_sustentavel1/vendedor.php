@@ -1,4 +1,3 @@
-
 <?php
 session_start();
 include 'conexao.php';
@@ -20,13 +19,13 @@ if ($resultado->num_rows > 0) {
     exit;
 }
 
-// Verifica se o vendedor tem endereço cadastrado
+
 $sql_endereco = "SELECT * FROM Endereco WHERE id_vendedor = '$id_vendedor'";
 $res_endereco = $conexao->query($sql_endereco);
 $tem_endereco = ($res_endereco && $res_endereco->num_rows > 0);
 $endereco = $tem_endereco ? $res_endereco->fetch_assoc() : null;
 
-// Exclusão de conta
+
 $erro_excluir = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['excluir_conta'])) {
     $senha = $_POST['senha_excluir'] ?? '';
@@ -45,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['excluir_conta'])) {
     }
 }
 
-// Logout
+
 if (isset($_POST['logout'])) {
     session_destroy();
     header('Location: login.php');
@@ -363,7 +362,11 @@ footer p {
 
     <div class="atalhos">
       <div class="dados-atalho"><a href="dados.php"><img src="img/dados.png" alt=""></a></div>
-      <div class="assinatura-atalho"><a href="assinatura_usuario.php"><img src="img/assinatura.png" alt=""></a></div>
+      <div class="assinatura-atalho">
+        <a href="<?php echo ($vendedor['premium'] ? 'c+.php' : 'assinatura_usuario.php'); ?>">
+          <img src="img/assinatura.png" alt="">
+        </a>
+      </div>
       <div class="perguntas-atalho"><a href="respostas.php"><img src="img/perguntas.png" alt=""></a></div>
       <div class="pedidos-atalho"><a href="pedidos.php"><img src="img/pedidos.png" alt=""></a></div>
        <div class="produtos-atalho"><a href="produtos.php"><img src="img/produtos.png" alt=""></a></div>
@@ -420,12 +423,12 @@ footer p {
     </div>
   </div>
   <script>
-    // Fecha modal ao clicar fora do conteúdo
+    
     document.addEventListener('click', function(e) {
       var modal = document.getElementById('modal-excluir');
       if (modal && e.target === modal) fecharModalExcluir();
     });
-    // Se houve erro, reabre o modal
+    
     <?php if (!empty($erro_excluir)): ?>
       abrirModalExcluir();
     <?php endif; ?>

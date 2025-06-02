@@ -10,7 +10,7 @@ if (!isset($_SESSION['usuario_id'])) {
 
 $id_cliente = $_SESSION['usuario_id'];
 
-// Busca perguntas feitas pelo usuário
+
 $sql = "SELECT p.id_pergunta, p.texto AS pergunta, p.data, pr.nome AS produto_nome, r.texto AS resposta
         FROM Pergunta p
         JOIN Produto pr ON p.id_produto = pr.id_produto

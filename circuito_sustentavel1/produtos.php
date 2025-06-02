@@ -13,7 +13,6 @@ if (!isset($_SESSION['vendedor_id'])) {
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Gerenciar Produtos</title>
   <style>
-    /* Paleta de cores padrão */
     * {
       margin: 0;
       padding: 0;
@@ -126,8 +125,8 @@ if (!isset($_SESSION['vendedor_id'])) {
       <h1>Gerenciar Produtos</h1>
       <div class="botoes">
         <button class="botao-acao" onclick="location.href='cadastrar_produto.php'">Cadastrar Produto</button>
-        <button class="botao-acao" onclick="location.href='ver_produtos.php'">Atualizar Produto</button>
-        <button class="botao-acao" onclick="location.href='atualizar_pedido.php'">Atualizar Pedido</button>
+        <button class="botao-acao" onclick="location.href='ver_produtos.php'">Editar Produto</button>
+        <button class="botao-acao" onclick="location.href='pedidos_vendedor.php'">Pedidos Recebidos</button>
         
       </div>
     </div>

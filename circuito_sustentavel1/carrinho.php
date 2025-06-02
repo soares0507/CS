@@ -10,12 +10,11 @@ if (!isset($_SESSION['usuario_id'])) {
 
 $id_cliente = $_SESSION['usuario_id'];
 
-// Atualizar quantidade
+// Pfv funciona porra
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['atualizar_qtd'])) {
     $id_carrinho = intval($_POST['id_carrinho']);
     $id_produto = intval($_POST['id_produto']);
     $nova_qtd = max(1, intval($_POST['quantidade']));
-    // Busca estoque do produto
     $res_estoque = $conexao->query("SELECT estoque FROM Produto WHERE id_produto = '$id_produto'");
     $estoque = 1;
     if ($res_estoque && $row_estoque = $res_estoque->fetch_assoc()) {
@@ -25,20 +24,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['atualizar_qtd'])) {
     $conexao->query("UPDATE Item_Carrinho SET quantidade = '$nova_qtd' WHERE id_carrinho = '$id_carrinho' AND id_produto = '$id_produto'");
 }
 
-// Remover produto
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remover_produto'])) {
     $id_carrinho = intval($_POST['id_carrinho']);
     $id_produto = intval($_POST['id_produto']);
     $conexao->query("DELETE FROM Item_Carrinho WHERE id_carrinho = '$id_carrinho' AND id_produto = '$id_produto'");
 }
 
-// Redirecionar para pagamento.php
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['finalizar_compra'])) {
     header('Location: pagamento.php');
     exit;
 }
 
-// Busca todos os carrinhos do cliente (um para cada vendedor)
 $sql = "SELECT c.id_carrinho, c.id_vendedor, v.nome as nome_vendedor
         FROM Carrinho c
         LEFT JOIN Vendedor v ON c.id_vendedor = v.id_vendedor

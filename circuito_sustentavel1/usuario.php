@@ -14,29 +14,29 @@ $resultado = $conexao->query($sql);
 if ($resultado->num_rows > 0) {
     $usuario = $resultado->fetch_assoc();
 } else {
-    // Se não encontrar usuário, encerra a sessão e redireciona
+    
     session_destroy();
     header('Location: login.php');
     exit;
 }
 
-// Verifica se o usuário tem endereço cadastrado
+
 $sql_endereco = "SELECT * FROM Endereco WHERE id_cliente = '$id_cliente'";
 $res_endereco = $conexao->query($sql_endereco);
 $tem_endereco = ($res_endereco && $res_endereco->num_rows > 0);
 $endereco = $tem_endereco ? $res_endereco->fetch_assoc() : null;
 
-// Exclusão de conta
+
 $erro_excluir = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['excluir_conta'])) {
     $senha = $_POST['senha_excluir'] ?? '';
-    // Verifica a senha
+   
     $sql = "SELECT senha FROM Cliente WHERE id_cliente = '$id_cliente'";
     $res = $conexao->query($sql);
     if ($res && $res->num_rows > 0) {
         $row = $res->fetch_assoc();
         if (password_verify($senha, $row['senha'])) {
-            // Exclui registros dependentes antes de excluir o cliente
+            
             $conexao->query("DELETE FROM Cotidiano WHERE id_cliente = '$id_cliente'");
             $conexao->query("DELETE FROM Endereco WHERE id_cliente = '$id_cliente'");
             $conexao->query("DELETE FROM Moeda WHERE id_cliente = '$id_cliente'");
@@ -46,9 +46,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['excluir_conta'])) {
             $conexao->query("DELETE FROM Postagem WHERE id_cliente = '$id_cliente'");
             $conexao->query("DELETE FROM Comentario WHERE id_cliente = '$id_cliente'");
             $conexao->query("DELETE FROM Pergunta WHERE id_cliente = '$id_cliente'");
-            // Adicione outras tabelas filhas se necessário
+           
 
-            // Agora exclui o usuário e faz logout
+            
             $conexao->query("DELETE FROM Cliente WHERE id_cliente = '$id_cliente'");
             session_destroy();
             header('Location: login.php');
@@ -59,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['excluir_conta'])) {
     }
 }
 
-// Logout
+
 if (isset($_POST['logout'])) {
     session_destroy();
     header('Location: login.php');

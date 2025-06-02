@@ -1,570 +1,674 @@
 <?php
 session_start();
-include 'conexao.php';
+include 'conexao.php'; // Assume que $conexao é configurado aqui
 
 $usuario_logado = false;
-$usuario_nome = '';
+$usuario_nome = ''; 
+$link_perfil = 'login.php'; // Link padrão se não logado
 
 if (isset($_SESSION['usuario_id'])) {
     $usuario_logado = true;
     $id_cliente = $_SESSION['usuario_id'];
-    $sql = "SELECT * FROM Cliente WHERE id_cliente = '$id_cliente'";
-    $resultado = $conexao->query($sql);
-    if ($resultado->num_rows > 0) {
-        $usuario = $resultado->fetch_assoc();
-        $usuario_nome = $usuario['nome'];
+    $sql_user = "SELECT nome FROM Cliente WHERE id_cliente = ?";
+    $stmt_user = $conexao->prepare($sql_user);
+    if($stmt_user){
+        $stmt_user->bind_param("i", $id_cliente);
+        $stmt_user->execute();
+        $resultado_user = $stmt_user->get_result();
+        if ($resultado_user->num_rows > 0) {
+            $usuario = $resultado_user->fetch_assoc();
+            $usuario_nome = $usuario['nome'];
+        }
+        $stmt_user->close();
     }
+    $link_perfil = 'usuario.php'; // CORRIGIDO: Link para perfil do cliente
 } elseif (isset($_SESSION['vendedor_id'])) {
     $usuario_logado = true;
     $id_vendedor = $_SESSION['vendedor_id'];
-    $sql = "SELECT * FROM Vendedor WHERE id_vendedor = '$id_vendedor'";
-    $resultado = $conexao->query($sql);
-    if ($resultado->num_rows > 0) {
-        $vendedor = $resultado->fetch_assoc();
-        $usuario_nome = $vendedor['nome'];
+    $sql_vend = "SELECT nome FROM Vendedor WHERE id_vendedor = ?";
+    $stmt_vend = $conexao->prepare($sql_vend);
+    if($stmt_vend){
+        $stmt_vend->bind_param("i", $id_vendedor);
+        $stmt_vend->execute();
+        $resultado_vend = $stmt_vend->get_result();
+        if ($resultado_vend->num_rows > 0) {
+            $vendedor = $resultado_vend->fetch_assoc();
+            $usuario_nome = $vendedor['nome'];
+        }
+        $stmt_vend->close();
+    }
+    $link_perfil = 'vendedor.php';
+}
+
+// Lógica para o ícone do carrinho (mantida da versão anterior, parece correta)
+$imagem_carrinho = 'img/carrinho_sem.png'; 
+if ($usuario_logado) {
+    $id_entidade_carrinho = isset($_SESSION['usuario_id']) ? $_SESSION['usuario_id'] : (isset($_SESSION['vendedor_id']) ? $_SESSION['vendedor_id'] : null);
+    $coluna_entidade = isset($_SESSION['usuario_id']) ? 'id_cliente' : (isset($_SESSION['vendedor_id']) ? 'id_vendedor' : null);
+
+    if ($id_entidade_carrinho && $coluna_entidade) {
+        // Corrigido: usa COUNT(ic.id_produto) pois não existe id_item_carrinho
+        $sql_carrinho_check = "SELECT COUNT(ic.id_produto) as total_itens 
+                               FROM Carrinho c 
+                               JOIN Item_Carrinho ic ON c.id_carrinho = ic.id_carrinho 
+                               WHERE c.$coluna_entidade = ?";
+        $stmt_carrinho = $conexao->prepare($sql_carrinho_check);
+        if ($stmt_carrinho) {
+            $stmt_carrinho->bind_param("i", $id_entidade_carrinho);
+            $stmt_carrinho->execute();
+            $resultado_carrinho = $stmt_carrinho->get_result();
+            $dados_carrinho = $resultado_carrinho->fetch_assoc();
+            if ($dados_carrinho && $dados_carrinho['total_itens'] > 0) {
+                $imagem_carrinho = 'img/carrinho.png';
+            }
+            $stmt_carrinho->close();
+        }
     }
 }
+$link_carrinho = 'carrinho.php'; 
+if(isset($_SESSION['vendedor_id'])) {
+    $link_carrinho = 'carrinho_vendedor.php'; 
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Circuito Sustentável</title>
+  <title>Loja - Circuito Sustentável</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
   <style>
+    :root {
+        --verde: #28a060;
+        --verde-escuro: #1e7c4b;
+        --verde-claro-fundo: #f0f9f4;
+        --cinza-claro: #f4f6f8; 
+        --cinza-texto: #5f6c7b;
+        --cinza-escuro: #2c3e50;
+        --branco: #ffffff;
+        --sombra-padrao: 0 6px 18px rgba(0,0,0, 0.06);
+        --sombra-hover-forte: 0 10px 25px rgba(40, 160, 96, 0.15);
+        --border-radius-sm: 4px;
+        --border-radius-md: 8px;
+        --border-radius-lg: 16px;
+        --transition-fast: 0.2s;
+        --transition-std: 0.3s;
+        --transition-long: 0.4s; /* Ajustado para slide do menu */
+        --font-principal: 'Poppins', sans-serif;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
     body {
-      margin: 0;
-      font-family: sans-serif;
-      background-color: #d5d3c7;
+        font-family: var(--font-principal);
+        line-height: 1.6;
+        color: var(--cinza-texto);
+        background-color: var(--cinza-claro);
+        overflow-x: hidden;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
     }
-
-    header {
-      background: white;
-      padding: 1rem;
-      position: relative;
-    }
-
-    .menu-btn {
-      background: #28a060;
-      border-radius: 30px;
-      padding: 20px 30px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      color: black;
-      font-weight: bold;
-      font-size: 1rem;
-      cursor: pointer;
-      position: absolute;
-      top: 1rem;
-      left: 1rem;
-      margin-top: 1.4%;
-    }
-
-    .logo-container {
-      text-align: center;
-      margin-top: 20px;
-    }
-
-    .logo-container img {
-      height: 40px;
-    }
-
-    .search-bar {
-      margin: 1rem auto 0 auto;
-      display: flex;
-      justify-content: center;
-      position: relative;
-    }
-
-    .search-bar input {
-      width: 70%;
-      padding: 10px 40px 10px 20px;
-      border: none;
-      background: #f3f2e7;
-      border-radius: 20px;
-      font-size: 1rem;
-      margin-left: 269px;
-    }
-
-    .search-bar img.lupa {
-      position: absolute;
-      right: 14%;
-      top: 50%;
-      transform: translateY(-50%);
-      height: 20px;
-    }
-
-    .auth-section {
-      position: absolute;
-      top: 1rem;
-      right: 1rem;
-      display: flex;
-      flex-direction: column; /* Alinha os elementos verticalmente */
-      align-items: flex-end; /* Alinha à direita */
-      gap: 10px;
-      margin-top: 1.4%;
-    }
-
-    .auth-links {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 0.9rem;
-    }
-
-    .auth-links a {
-      text-decoration: none;
-      color: black;
-      padding: 5px 10px;
-      border: 2px solid #28a060;
-      border-radius: 5px;
-    }
-
-    .icons {
-        width: -9%;
-        height: auto;
-        max-width: 10%;
-        max-height: 10%;
-    }
-
-    .icons img {
-      height: 40px; /* Reduz o tamanho das imagens */
-      width: auto; /* Mantém a proporção */
-      margin-left: -119px; /* Move os ícones 10px para a esquerda */
-      
-    }
-
-    .promo {
-      background: #0a7540;
-      color: white;
-      text-align: center;
-      margin: 2rem;
-      padding: 4rem 1rem;
-      border-radius: 35px;
-      font-size: 1.2rem;
-    }
-
-    .produtos {
-      padding: 2rem;
-    }
-
-    .produtos h2 {
-      font-size: 1.5rem;
-    }
-
-    .items {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 1.5rem;
-      margin-top: 1rem;
-    }
-
-    .item {
-      color:rgb(0, 0, 0);
-      height: 320px; /* Aumentado */
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.2rem; /* Aumentado */
-    }
-
-    .item-content {
-      text-align: center;
-    }
-
-    .item-img {
-      width: 160px;
-      height: 160px;
-      object-fit: cover;
-      border-radius: 10px;
-      display: block;
-      margin: 0 auto 16px auto;
-    }
-
-    .item-nome {
-      font-weight: bold;
-      font-size: 1.25rem;
-    }
-
-    .item-preco {
-      font-size: 1.1rem;
-    }
-
-    .item-desc {
-      font-size: 1rem;
-      color: #000000;
-    }
-
-    .item-btn-area {
-      margin-top: 12px;
-    }
-
-    .item-btn-ver {
-      background: #28a060;
-      color: #fff;
-      border: none;
-      padding: 10px 22px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 1rem;
-    }
-
-    .item-btn-ver:hover {
-      background: #1b5e20;
-    }
-
-     .auth-buttons button {
-      padding: 8px 15px;
-      background-color: #28a060;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      
-    }
-
-    /* Estilo do botão "Iniciar Sessão" com borda verde */
-    .auth-buttons button:last-child {
-      border: 2px solid #28a060; /* Borda verde */
-      background-color: transparent; /* Fundo transparente para o efeito */
-      color: #2e7d32; /* Cor do texto verde */
-    }
-
-    .auth-buttons button:last-child:hover {
-      background-color: #2e7d32;
-      color: white;
-      box-shadow: 0 0 10px rgba(46, 125, 50, 0.5); /* Efeito de vinil com sombra */
-    }
-
-    .auth-buttons button:hover {
-      background-color: #1b5e20;
-    }
-
-    .user-info img {
-      height: 50px; 
-      width: auto; 
-      margin-left: -139px; 
-      margin-top: -13px;
-    }
-
-  
-
-    .category-list {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      height: 100%;
-      width: 300px;
-      background: white;
-      box-shadow: 2px 0 6px rgba(0, 0, 0, 0.2);
-      z-index: 1000;
-      overflow-y: auto;
-      padding: 1rem;
-    }
-
-    .category-list img {
-      height: 30px; 
-      width: auto; 
-     
-    }
-
-    .category-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .category-header img {
-      height: 30px;
-      width: auto;
-    }
-
-    .close-btn {
-      font-size: 1.5rem;
-      font-weight: bold;
-      color: #28a060;
-      cursor: pointer;
-      margin-right: 10px;
-      margin-top: 5px;
-    }
-
-    .close-btn:hover {
-      color: #1b5e20;
-    }
-
-    .category-list h3 {
-      text-align: center;
-      margin-bottom: 1rem;
-      font-size: 1.2rem;
-      color: #28a060;
-    }
-
-    .category-list ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-
-    .category-list ul li {
-      padding: 0.5rem 0;
-      border-bottom: 1px solid #ddd;
-      font-size: 1rem;
-      color: #333;
-      cursor: pointer;
-    }
-
-    .category-list ul li:last-child {
-      border-bottom: none;
-    }
-
-    .category-list ul li:hover {
-      color: #28a060;
-    }
-
-    .overlay {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.5);
-      z-index: 999;
-    }
-
-    .footer-novo {
-  background: #1b2430;
-  color: #fff;
-  padding: 2.5rem 1rem 1rem 1rem;
-  margin-top: 2rem;
-}
-.footer-container {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 2rem;
-  max-width: 1100px;
-  margin: 0 auto;
-}
-.footer-col {
-  min-width: 180px;
-  flex: 1;
-}
-.footer-col h4 {
-  margin-bottom: 1rem;
-  color:rgb(255, 255, 255);
-}
-.footer-col a {
-  color: #cfd8dc;
-  text-decoration: none;
-  display: block;
-  margin-bottom: 0.5rem;
-  font-size: 1rem;
-  transition: color 0.2s;
-}
-.footer-col a:hover {
-  color: #28a060;
-}
-.footer-bottom {
-  text-align: center;
-  color: #aaa;
-  font-size: 0.95rem;
-  margin-top: 2rem;
-  border-top: 1px solid #333;
-  padding-top: 1rem;
-}
-footer p {
- color:rgb(156, 163, 175);
-;
-}
     
-  </style>
-  <script>
-    function toggleCategoryList() {
-      const overlay = document.getElementById('overlay');
-      const categoryList = document.getElementById('category-list');
-      const isVisible = categoryList.style.display === 'block';
-
-      categoryList.style.display = isVisible ? 'none' : 'block';
-      overlay.style.display = isVisible ? 'none' : 'block';
+    main {
+        padding-top: 90px; 
+        min-height: calc(100vh - 180px); 
     }
-  </script>
+
+    .container-page {
+        width: 90%;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px 0;
+    }
+    
+    .site-header {
+        position: fixed; top: 0; left: 0; width: 100%; z-index: 1000;
+        padding: 15px 0;
+        background-color: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+        transition: background-color var(--transition-std), box-shadow var(--transition-std), padding var(--transition-std);
+        border-bottom: 1px solid transparent;
+    }
+    .site-header.scrolled {
+        background-color: var(--branco);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+        padding: 12px 0;
+        border-bottom: 1px solid var(--cinza-claro);
+    }
+    .header-container {
+        width: 90%; max-width: 1200px; margin: 0 auto;
+        display: flex; align-items: center; justify-content: space-between;
+    }
+    .site-header .logo { height: 45px; transition: transform var(--transition-std); }
+    .site-header .logo:hover { transform: scale(1.05); }
+
+    .header-center {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        flex-grow: 1; 
+        justify-content: flex-start; /* Alinha à esquerda após o logo */
+        margin-left: 25px; /* Espaço após o logo */
+    }
+
+    .menu-categorias-btn {
+        background: none; border: none; cursor: pointer;
+        display: flex; align-items: center; gap: 8px;
+        font-family: var(--font-principal); font-weight: 500;
+        font-size: 0.95em; color: var(--cinza-escuro);
+        padding: 8px 12px; border-radius: var(--border-radius-md);
+        transition: background-color var(--transition-std), color var(--transition-std);
+    }
+    .menu-categorias-btn:hover {
+        background-color: var(--verde-claro-fundo);
+        color: var(--verde);
+    }
+    .menu-categorias-btn svg { width: 20px; height: 20px; stroke-width: 2; }
+
+    .search-bar-header {
+        position: relative;
+        width: 100%;
+        max-width: 450px;
+    }
+    .search-bar-header input {
+        width: 100%;
+        padding: 10px 45px 10px 20px;
+        border: 1px solid #dde1e6;
+        background: var(--branco);
+        border-radius: var(--border-radius-lg);
+        font-size: 0.9em;
+        font-family: var(--font-principal);
+        transition: border-color var(--transition-std), box-shadow var(--transition-std);
+    }
+    .search-bar-header input:focus {
+        outline: none;
+        border-color: var(--verde);
+        box-shadow: 0 0 0 3px rgba(40, 160, 96, 0.15);
+    }
+    .search-bar-header .search-submit-btn {
+        position: absolute;
+        right: 3px; top: 3px; bottom: 3px; /* Para centralizar o botão */
+        width: 40px; /* Largura do botão */
+        background: var(--verde); border: none; cursor: pointer;
+        border-top-right-radius: var(--border-radius-lg); /* Arredondar canto */
+        border-bottom-right-radius: var(--border-radius-lg);
+        display: flex; align-items:center; justify-content:center;
+        transition: background-color var(--transition-std);
+    }
+    .search-bar-header .search-submit-btn:hover {
+        background-color: var(--verde-escuro);
+    }
+    .search-bar-header .search-submit-btn svg {
+        width: 18px; height: 18px; color: var(--branco);
+    }
+
+    .header-actions { display: flex; align-items: center; gap: 15px; /* Gap reduzido */ }
+    .header-actions a { /* Para os links dos ícones */
+        display: flex; align-items: center;
+        padding: 5px; /* Pequeno padding para área de clique */
+    }
+    .header-actions img.action-icon { /* Estilo para os ícones originais */
+        height: 28px; /* Tamanho ajustado para ícones */
+        width: auto;
+        transition: transform var(--transition-fast);
+    }
+    .header-actions a:hover img.action-icon {
+        transform: scale(1.1);
+    }
+    .auth-buttons-header .btn { padding: 7px 14px; font-size: 0.85em; margin-left:5px;}
+    .auth-buttons-header .btn-outline { border-color: var(--verde-escuro); color: var(--verde-escuro); }
+    .auth-buttons-header .btn-outline:hover { background-color: var(--verde-escuro); color: var(--branco); }
+
+
+    .offcanvas-menu {
+        position: fixed;
+        top: 0; left: -320px; 
+        width: 400px; height: 100%;
+        background-color: var(--branco);
+        box-shadow: 3px 0 15px rgba(0,0,0,0.1);
+        z-index: 1002; /* Acima do overlay e do header */
+        padding: 20px;
+        overflow-y: auto;
+        transition: transform var(--transition-long) cubic-bezier(0.23, 1, 0.32, 1); /* Usar transform para melhor performance */
+        transform: translateX(-100%); /* Começa totalmente fora da tela */
+    }
+    .offcanvas-menu.open { 
+        transform: translateX(calc(100% + 20px)); 
+    }
+     .offcanvas-menu.open {
+        transform: translateX(0); /* Correto: desliza para a posição original */
+    }
+    /* Para o estado inicial, em vez de left: -320px, usamos transform */
+    .offcanvas-menu {
+        /* ... outros estilos ... */
+        left: 0; /* Fixa a posição esquerda */
+        transform: translateX(-105%); /* Começa fora da tela (um pouco mais para garantir) */
+        /* ... */
+    }
+
+
+    .offcanvas-header {
+        display: flex; justify-content: space-between; align-items: center;
+        margin-bottom: 25px; padding-bottom: 15px;
+        border-bottom: 1px solid var(--cinza-claro);
+    }
+    .offcanvas-header .logo-menu { height: 35px; }
+    .close-offcanvas-btn {
+        background: none; border: none; cursor: pointer;
+        font-size: 1.8em; color: var(--cinza-texto);
+        padding: 5px; line-height: 1;
+        transition: color var(--transition-fast);
+    }
+    .close-offcanvas-btn:hover { color: var(--cinza-escuro); }
+    .offcanvas-menu h3 {
+        font-size: 1.3em; color: var(--verde-escuro);
+        margin-bottom: 15px; text-align:left;
+    }
+    .offcanvas-menu ul { list-style: none; padding: 0; margin: 0; }
+    .offcanvas-menu ul li a {
+        display: block; padding: 10px 5px;
+        text-decoration: none; color: var(--cinza-escuro);
+        font-size: 0.95em; font-weight: 500;
+        border-radius: var(--border-radius-sm);
+        transition: background-color var(--transition-fast), color var(--transition-fast), padding-left var(--transition-fast);
+    }
+    .offcanvas-menu ul li a:hover {
+        background-color: var(--verde-claro-fundo);
+        color: var(--verde);
+        padding-left: 10px; /* Efeito de indentação no hover */
+    }
+    .page-overlay {
+        position: fixed; top: 0; left: 0;
+        width: 100%; height: 100%;
+        background-color: rgba(0,0,0,0.5); /* Overlay mais escuro */
+        z-index: 1001; /* Abaixo do menu, acima do header */
+        opacity: 0; visibility: hidden;
+        transition: opacity var(--transition-long) ease-out, visibility var(--transition-long) ease-out;
+    }
+    .page-overlay.active { opacity: 1; visibility: visible; }
+
+    .promo-banner {
+        background: linear-gradient(135deg, var(--verde) 0%, var(--verde-escuro) 100%);
+        color: var(--branco); text-align: center; margin: 20px auto;
+        padding: 50px 30px; border-radius: var(--border-radius-lg);
+        font-size: 1.3em; font-weight: 500;
+        box-shadow: 0 10px 30px rgba(40,160,96,0.3);
+        opacity:0; transform: translateY(20px); /* Estado inicial para animação */
+    }
+    .promo-banner.in-view { /* Classe adicionada por JS */
+        opacity: 1;
+        transform: translateY(0);
+        transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+    }
+    .promo-banner h2 { font-size: 1.8em; margin-bottom: 10px; font-weight: 700; }
+    .promo-banner p { font-size: 0.9em; opacity:0.9; }
+
+    .produtos-section { padding: 30px 0; }
+    .produtos-section .section-title-produtos {
+        font-size: clamp(1.8rem, 4vw, 2.8rem); color: var(--cinza-escuro);
+        font-weight: 600; text-align: left; margin-bottom: 25px;
+        border-bottom: 3px solid var(--verde); padding-bottom: 10px;
+        display: inline-block; 
+    }
+    .product-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 25px;
+    }
+    .product-card {
+        background-color: var(--branco);
+        border-radius: var(--border-radius-md);
+        box-shadow: var(--sombra-padrao);
+        overflow: hidden; 
+        display: flex; flex-direction: column;
+        transition: transform var(--transition-std), box-shadow var(--transition-std);
+        opacity: 0; /* Para animação de entrada */
+        transform: translateY(20px);
+    }
+     .product-card.in-view { /* Classe adicionada por JS */
+        opacity: 1;
+        transform: translateY(0);
+    }
+    .product-card:hover {
+        transform: translateY(-8px);
+        box-shadow: var(--sombra-hover-forte);
+    }
+    .product-card a.product-link {
+        text-decoration: none; color: inherit; display: flex;
+        flex-direction: column; height: 100%;
+    }
+    .product-image-container {
+        width: 100%; padding-top: 85%; position: relative;
+        background-color: var(--cinza-claro); 
+    }
+    .product-image-container img {
+        position: absolute; top: 0; left: 0;
+        width: 100%; height: 100%; object-fit: cover;
+        transition: transform 0.4s ease-out;
+    }
+    .product-card:hover .product-image-container img { transform: scale(1.08); }
+    .product-info {
+        padding: 18px; text-align: left; flex-grow: 1;
+        display: flex; flex-direction: column;
+    }
+    .product-name {
+        font-weight: 600; font-size: 1.05em; color: var(--cinza-escuro);
+        margin-bottom: 6px; line-height: 1.3;
+        display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2;
+        -webkit-box-orient: vertical; overflow: hidden;
+        text-overflow: ellipsis; min-height: 2.6em; 
+    }
+    .product-price {
+        font-size: 1.1em; font-weight: 700; color: var(--verde);
+        margin-bottom: 8px;
+    }
+    .product-description-short {
+        font-size: 0.85em; color: var(--cinza-texto); margin-bottom: 12px;
+        line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3;
+        -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;
+        flex-grow: 1; 
+    }
+    .product-actions { margin-top: auto; padding-top: 10px; }
+    .btn-ver-produto {
+        width: 100%; padding: 10px 15px; font-size: 0.9em;
+        text-align: center; background-color: var(--verde-claro-fundo);
+        color: var(--verde-escuro); border: 1px solid var(--verde-claro-fundo);
+        box-shadow: none;
+    }
+    .btn-ver-produto:hover {
+        background-color: var(--verde); color: var(--branco);
+        border-color: var(--verde);
+        transform: translateY(-2px);
+    }
+    .no-products {
+        grid-column: 1 / -1; text-align: center; font-size: 1.1em;
+        padding: 40px 20px; color: var(--cinza-texto);
+    }
+
+    .animate-on-scroll {
+        opacity: 0; transform: translateY(30px);
+        transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+    }
+    .animate-on-scroll.in-view { opacity: 1; transform: translateY(0); }
+    .delay-0-1s { transition-delay: 0.1s !important; }
+    .delay-0-2s { transition-delay: 0.2s !important; }
+    .delay-0-3s { transition-delay: 0.3s !important; }
+
+    .site-footer-bottom {
+        background-color: var(--cinza-escuro); color: #b0bec5;
+        padding: 70px 0 40px; font-size: 0.95em;
+    }
+    .footer-content-grid {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 45px; margin-bottom: 50px;
+        width: 90%; max-width: 1140px; margin: 0 auto 30px auto;
+    }
+    .footer-col h4 { font-size: 1.25em; color: var(--branco); font-weight: 600; margin-bottom: 20px; }
+    .footer-col p, .footer-col a { color: #b0bec5; text-decoration: none; margin-bottom: 10px; display: block; }
+    .footer-col a:hover { color: var(--verde); transform: translateX(3px); transition: transform var(--transition-fast); }
+    .footer-copyright { text-align: center; padding-top: 40px; border-top: 1px solid #4a5c6a; color: #78909c; width: 90%; max-width: 1140px; margin: 0 auto; }
+
+    @media (max-width: 992px) {
+        .header-center { flex-direction: column; align-items: stretch; gap: 10px; margin-left: 15px; margin-right: 15px;}
+        .menu-categorias-btn { width: auto; justify-content: flex-start; }
+        .search-bar-header { max-width: none; }
+        .site-header { padding-bottom: 10px; } 
+        .site-header.scrolled { padding-bottom:10px; }
+        main { padding-top: 150px; }
+    }
+    @media (max-width: 768px) {
+        .header-container { flex-wrap: wrap; justify-content: space-between; } /* Logo e actions na mesma linha */
+        .site-header .logo { margin-bottom: 0; } /* Sem margem se estiver na mesma linha */
+        .header-center { width:100%; order: 3; margin-left:0; margin-right:0; padding-top: 10px; }
+        .header-actions { order: 2; /* Actions antes do search em mobile */ }
+        main { padding-top: 170px; /* Aumentar padding se o header crescer */ }
+
+        .promo-banner { padding: 30px 20px; font-size: 1.1em; }
+        .promo-banner h2 { font-size: 1.5em; }
+        .produtos-section .section-title-produtos { font-size: clamp(1.5rem, 4vw, 2rem); }
+        .product-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; }
+        .product-card a.product-link { min-height: auto; }
+    }
+     @media (max-width: 480px) {
+        .product-grid { grid-template-columns: 1fr; } /* Uma coluna */
+        .header-actions { gap: 10px; }
+        .header-actions img.action-icon { height: 24px; }
+        .auth-buttons-header .btn { padding: 6px 10px; font-size: 0.8em; }
+        main { padding-top: 160px; }
+    }
+  </style>
 </head>
 <body>
-  <div id="overlay" class="overlay" onclick="toggleCategoryList()"></div>
-  <header>
-    <div class="menu-btn" onclick="toggleCategoryList()">
-      <span>☰</span>
-      CATEGORIAS
-    </div>
 
-    <div id="category-list" class="category-list">
-      <div class="category-header">
-        <img src="img/logo2.png" alt="Logo" />
-        <span class="close-btn" onclick="toggleCategoryList()">X</span>
-      </div>
-      <h3>CATEGORIAS</h3>
-      <ul>
-        <li>Processadores</li>
-        <li>Placas de Vídeo</li>
-        <li>Memórias RAM</li>
-        <li>Placas-Mãe</li>
-        <li>Fontes de Alimentação</li>
-        <li>Coolers</li>
-        <li>Gabinetes</li>
-        <li>Armazenamento (HDD/SSD)</li>
-      </ul>
-    </div>
+  <div class="page-overlay" id="pageOverlay" onclick="toggleCategoryList()"></div>
 
-    <div class="logo-container">
-      <img src="img/logo2.png" alt="Circuito Sustentável Logo" />
-    </div>
+  <header class="site-header">
+    <div class="header-container">
+      <a href="loja.php">
+        <img src="img/logo2.png" alt="Circuito Sustentável Logo" class="logo" />
+      </a>
 
-    <div class="search-bar">
-      <form method="get" action="loja.php" style="width:100%;">
-        <input type="text" name="busca" placeholder="Pesquisar produtos..." value="<?= isset($_GET['busca']) ? htmlspecialchars($_GET['busca']) : '' ?>" />
-        <button type="submit" style="position:absolute;right:14%;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;">
-          <img src="img/lupa.png" alt="Pesquisar" class="lupa" />
+      <div class="header-center">
+        <button class="menu-categorias-btn" onclick="toggleCategoryList()" aria-label="Abrir menu de categorias" aria-expanded="false">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+            <path d="M3 4H21V6H3V4ZM3 11H21V13H3V11ZM3 18H21V20H3V18Z"></path>
+          </svg>
+          Categorias
         </button>
-      </form>
-    </div>
+        <div class="search-bar-header">
+          <form method="get" action="loja.php" style="display:flex; width:100%;">
+            <input type="text" name="busca" placeholder="Pesquisar produtos, marcas..." value="<?= isset($_GET['busca']) ? htmlspecialchars($_GET['busca']) : '' ?>" aria-label="Campo de pesquisa"/>
+            <button type="submit" class="search-submit-btn" aria-label="Pesquisar">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+              </svg>
+            </button>
+          </form>
+        </div>
+      </div>
 
-    <div class="auth-section">
-      <?php if ($usuario_logado): ?>
-        <div class="user-info">
-          <a href="<?= isset($_SESSION['usuario_id']) ? 'usuario.php' : 'vendedor.php' ?>">
-            <img src="img/user.png" alt="Usuário" />
-          </a>
-         
-        </div>
-      <?php else: ?>
-        <div class="auth-buttons">
-          <button onclick="location.href='cadastro.php'">Registrar</button>
-          <button onclick="location.href='login.php'">Iniciar Sessão</button>
-        </div>
-      <?php endif; ?>
-      <div class="icons">
-        <a href="c+.php">
-          <img src="img/C+.png" alt="">
+      <div class="header-actions">
+        <?php if ($usuario_logado): ?>
+            <a href="<?= htmlspecialchars($link_perfil) ?>" aria-label="Meu Perfil">
+                 <img src="img/user.png" alt="Meu Perfil" class="action-icon" />
+            </a>
+        <?php else: ?>
+            <div class="auth-buttons-header">
+            <button class="btn btn-outline btn-sm" onclick="location.href='login.php'">Entrar</button>
+            <button class="btn btn-primary btn-sm" onclick="location.href='cadastro.php'">Registrar</button>
+            </div>
+        <?php endif; ?>
+        <a href="rs.php" aria-label="C+ Moedas">
+            <img src="img/C+.png" alt="C+ Moedas" class="action-icon">
         </a>
-        <a href="<?php
-          // Corrige o link do carrinho conforme o tipo de usuário logado
-          if (isset($_SESSION['vendedor_id'])) {
-              echo 'carrinho_vendedor.php';
-          } else {
-              echo 'carrinho.php';
-          }
-        ?>">
-          <?php
-          // Mostra carrinho vazio se não houver itens
-          $mostrar_carrinho_vazio = false;
-          if (isset($_SESSION['usuario_id'])) {
-              $id_cliente = $_SESSION['usuario_id'];
-              $sql_carrinho = "SELECT id_carrinho FROM Carrinho WHERE id_cliente = '$id_cliente'";
-              $res_carrinho = $conexao->query($sql_carrinho);
-              $tem_item = false;
-              if ($res_carrinho && $res_carrinho->num_rows > 0) {
-                  while ($row_carrinho = $res_carrinho->fetch_assoc()) {
-                      $id_carrinho = $row_carrinho['id_carrinho'];
-                      $sql_itens = "SELECT 1 FROM Item_Carrinho WHERE id_carrinho = '$id_carrinho' LIMIT 1";
-                      $res_itens = $conexao->query($sql_itens);
-                      if ($res_itens && $res_itens->num_rows > 0) {
-                          $tem_item = true;
-                          break;
-                      }
-                  }
-              }
-              if (!$tem_item) $mostrar_carrinho_vazio = true;
-          } elseif (isset($_SESSION['vendedor_id'])) {
-              $id_vendedor = $_SESSION['vendedor_id'];
-              $sql_carrinho = "SELECT id_carrinho FROM Carrinho WHERE id_vendedor = '$id_vendedor' AND id_cliente IS NULL";
-              $res_carrinho = $conexao->query($sql_carrinho);
-              $tem_item = false;
-              if ($res_carrinho && $res_carrinho->num_rows > 0) {
-                  while ($row_carrinho = $res_carrinho->fetch_assoc()) {
-                      $id_carrinho = $row_carrinho['id_carrinho'];
-                      $sql_itens = "SELECT 1 FROM Item_Carrinho WHERE id_carrinho = '$id_carrinho' LIMIT 1";
-                      $res_itens = $conexao->query($sql_itens);
-                      if ($res_itens && $res_itens->num_rows > 0) {
-                          $tem_item = true;
-                          break;
-                      }
-                  }
-              }
-              if (!$tem_item) $mostrar_carrinho_vazio = true;
-          }
-          ?>
-          <img src="<?= $mostrar_carrinho_vazio ? 'img/carrinho_sem.png' : 'img/carrinho.png' ?>" alt="">
+        <a href="<?= htmlspecialchars($link_carrinho) ?>" aria-label="Carrinho de Compras">
+            <img src="<?= htmlspecialchars($imagem_carrinho) ?>" alt="Carrinho" class="action-icon">
         </a>
       </div>
     </div>
   </header>
 
-  <main>
-    <div class="promo">PROMOÇÃO SUPER FODA</div>
+  <nav class="offcanvas-menu" id="category-list">
+      <div class="offcanvas-header">
+        <img src="img/logo2.png" alt="Circuito Sustentável" class="logo-menu" />
+        <button class="close-offcanvas-btn" onclick="toggleCategoryList()" aria-label="Fechar menu de categorias">&#10005;</button>
+      </div>
+      <h3>CATEGORIAS</h3>
+      <ul>
+        <li><a href="loja.php?busca=Processador" onclick="toggleCategoryList()">Processadores</a></li>
+        <li><a href="loja.php?busca=Placa de Vídeo" onclick="toggleCategoryList()">Placas de Vídeo</a></li>
+        <li><a href="loja.php?busca=Memória RAM" onclick="toggleCategoryList()">Memórias RAM</a></li>
+        <li><a href="loja.php?busca=Placa-Mãe" onclick="toggleCategoryList()">Placas-Mãe</a></li>
+        <li><a href="loja.php?busca=Fonte de Alimentação" onclick="toggleCategoryList()">Fontes de Alimentação</a></li>
+        <li><a href="loja.php?busca=Cooler" onclick="toggleCategoryList()">Coolers</a></li>
+        <li><a href="loja.php?busca=Gabinete" onclick="toggleCategoryList()">Gabinetes</a></li>
+        <li><a href="loja.php?busca=Armazenamento" onclick="toggleCategoryList()">Armazenamento (HDD/SSD)</a></li>
+      </ul>
+  </nav>
 
-    <div class="produtos">
-      <h2>Produtos</h2>
-      <div class="items">
-        <?php
-        // Buscar produtos do banco
-        $busca = isset($_GET['busca']) ? trim($_GET['busca']) : '';
-        if ($busca !== '') {
-          $busca_sql = $conexao->real_escape_string($busca);
-          $sql_prod = "SELECT * FROM Produto WHERE nome LIKE '%$busca_sql%' OR descricao LIKE '%$busca_sql%'";
-        } else {
-          $sql_prod = "SELECT * FROM Produto";
-        }
-        $res_prod = $conexao->query($sql_prod);
-        if ($res_prod && $res_prod->num_rows > 0):
-          while ($prod = $res_prod->fetch_assoc()):
-            // Decodifica imagens (JSON ou lista)
-            $imagens = [];
-            if (!empty($prod['imagens'])) {
-              $imagens = json_decode($prod['imagens'], true);
-              if (!is_array($imagens)) {
-                $imagens = explode(',', $prod['imagens']);
-              }
+
+  <main>
+    <div class="container-page">
+      <!-- Banner achatado ANUNCIO.png -->
+      <div style="width: 100%; margin: 20px auto; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(40,160,96,0.3);">
+        <img src="img/ANUNCIO.png" alt="Anúncio" style="display: block; width: 100%; height: 260px; object-fit: cover;">
+      </div>
+      <div class="produtos-section">
+        <h2 class="section-title-produtos animate-on-scroll">Nossos Produtos</h2>
+        <div class="product-grid">
+            <?php
+            $busca = isset($_GET['busca']) ? trim($conexao->real_escape_string($_GET['busca'])) : '';
+            $categoria_filtro = isset($_GET['categoria']) ? trim($conexao->real_escape_string($_GET['categoria'])) : '';
+
+            $sql_prod = "SELECT * FROM Produto";
+            $condicoes = [];
+            if ($busca !== '') {
+                $condicoes[] = "(nome LIKE '%$busca%' OR descricao LIKE '%$busca%')";
             }
-            $img = !empty($imagens[0]) ? $imagens[0] : 'img/sem-imagem.png';
-        ?>
-        <div class="item">
-          <div class="item-content">
-            <img src="<?= htmlspecialchars($img) ?>" alt="Produto" class="item-img">
-            <div class="item-nome"><?= htmlspecialchars($prod['nome']) ?></div>
-            <div class="item-preco">R$ <?= number_format($prod['preco'],2,',','.') ?></div>
-            <div class="item-desc"><?= htmlspecialchars(mb_strimwidth($prod['descricao'],0,60,'...')) ?></div>
-            <div class="item-btn-area">
-              <a href="aba_produto.php?id=<?= $prod['id_produto'] ?>">
-                <button class="item-btn-ver">Ver</button>
+            if ($categoria_filtro !== '' && $categoria_filtro !== 'todos') {
+                // Assumindo que você tem uma coluna 'categoria' na tabela Produto
+                $condicoes[] = "categoria = '$categoria_filtro'"; 
+            }
+            if (!empty($condicoes)) {
+                $sql_prod .= " WHERE " . implode(' AND ', $condicoes);
+            }
+            
+            $res_prod = $conexao->query($sql_prod);
+            if ($res_prod && $res_prod->num_rows > 0):
+              $delay_animacao = 0;
+              while ($prod = $res_prod->fetch_assoc()):
+                // Corrigido: sempre tenta pegar a primeira imagem válida, seja array ou string
+                $img_path = 'img/sem-imagem.png';
+                $imagens_json = $prod['imagens'];
+                $primeira_imagem = '';
+
+                if (!empty($imagens_json)) {
+                    // Tenta decodificar como JSON
+                    $imagens_array = json_decode($imagens_json, true);
+                    if (is_array($imagens_array) && !empty($imagens_array)) {
+                        foreach ($imagens_array as $img) {
+                            $img = trim($img, " \t\n\r\0\x0B\"'/");
+                            if ($img !== '') {
+                                $primeira_imagem = $img;
+                                break;
+                            }
+                        }
+                    } else {
+                        // Fallback: string separada por vírgula
+                        foreach ($imagens_lista as $img) {
+                            $img = trim($img, " \t\n\r\0\x0B\"'/");
+                            if ($img !== '') {
+                                $primeira_imagem = $img;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if ($primeira_imagem !== '') {
+                    if (
+                        strpos($primeira_imagem, 'uploads_produtos/') === 0 ||
+                        strpos($primeira_imagem, 'img/') === 0
+                    ) {
+                        $img_path = $primeira_imagem;
+                    } else {
+                        
+                        $img_path = 'uploads_produtos/' . $primeira_imagem;
+                    }
+                }
+
+                // Lógica de delay para animação escalonada
+                $anim_delay_class = 'delay-0-' . (($delay_animacao % 3) + 1) . 's';
+                if ($delay_animacao >=3 ) $anim_delay_class = '';
+            ?>
+            <div class="product-card animate-on-scroll <?= $anim_delay_class ?>">
+              <a href="aba_produto.php?id=<?= $prod['id_produto'] ?>" class="product-link">
+                <div class="product-image-container">
+                  <img src="<?= htmlspecialchars($img_path) ?>" alt="<?= htmlspecialchars($prod['nome']) ?>">
+                </div>
+                <div class="product-info">
+                  <h3 class="product-name"><?= htmlspecialchars($prod['nome']) ?></h3>
+                  <p class="product-price">R$ <?= number_format($prod['preco'],2,',','.') ?></p>
+                  <p class="product-description-short"><?= htmlspecialchars(mb_strimwidth($prod['descricao'],0,70,'...')) ?></p>
+                  <div class="product-actions">
+                    <span class="btn btn-primary btn-ver-produto">Ver Detalhes</span> </div>
+                </div>
               </a>
             </div>
-          </div>
+            <?php 
+              $delay_animacao++;
+              endwhile; 
+            else: ?>
+            <div class="no-products">Nenhum produto encontrado <?= ($busca || ($categoria_filtro && $categoria_filtro !== 'todos')) ? "para sua busca/filtro." : "cadastrado no momento." ?></div>
+            <?php endif; ?>
         </div>
-        <?php endwhile; else: ?>
-        <div class="item">Nenhum produto cadastrado.</div>
-        <?php endif; ?>
       </div>
     </div>
   </main>
-  <footer class="footer-novo">
-    <div class="footer-container">
+
+  <footer class="site-footer-bottom">
+    <div class="container footer-content-grid">
       <div class="footer-col">
         <h4>Circuito Sustentável</h4>
         <p>Oferecendo solução para o meio ambiente e seu bolso.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Navegue</h4>
+        <a href="tela_inicial.php">Início</a>
+        <a href="loja.php">Loja</a>
+        <a href="<?= htmlspecialchars($link_perfil) ?>">Meu Perfil</a>
       </div>
       <div class="footer-col">
         <h4>Contato</h4>
         <p>📧 circuito_sustentavel@gmail.com</p>
         <p>📞 (85) 992933310</p>
       </div>
-     
     </div>
-    <div class="footer-bottom">
-      &copy; 2025 Circuito Sustentável Inc. Todos os direitos reservados.
+    <div class="footer-copyright">
+      &copy; <?php echo date("Y"); ?> Circuito Sustentável Inc. Todos os direitos reservados.
     </div>
   </footer>
+
+  <script>
+    const header = document.querySelector('.site-header');
+    if (header) {
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 50) {
+                header.classList.add('scrolled');
+            } else {
+                header.classList.remove('scrolled');
+            }
+        });
+    }
+
+    const animatedElements = document.querySelectorAll('.animate-on-scroll');
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('in-view');
+            }
+        });
+    }, { threshold: 0.1 });
+    animatedElements.forEach(el => observer.observe(el));
+
+    const categoryList = document.getElementById('category-list');
+    const pageOverlay = document.getElementById('pageOverlay');
+    const menuCategoriasBtn = document.querySelector('.menu-categorias-btn'); 
+
+    function toggleCategoryList() {
+        const isVisible = categoryList.classList.contains('open');
+        if (isVisible) {
+            categoryList.classList.remove('open');
+            pageOverlay.classList.remove('active');
+            if(menuCategoriasBtn) menuCategoriasBtn.setAttribute('aria-expanded', 'false');
+        } else {
+            categoryList.classList.add('open');
+            pageOverlay.classList.add('active');
+            if(menuCategoriasBtn) menuCategoriasBtn.setAttribute('aria-expanded', 'true');
+        }
+    }
+  </script>
 </body>
 </html>

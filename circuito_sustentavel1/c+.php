@@ -4,17 +4,12 @@ include 'conexao.php';
 $usuario_id = $_SESSION['usuario_id'] ?? 1; 
 $nome_usuario = "Usuário";
 
-
-$sql = "SELECT nome FROM Cliente WHERE id_cliente = ?";
-$stmt = $conexao->prepare($sql);
-if ($stmt) {
-    $stmt->bind_param("i", $usuario_id);
-    $stmt->execute();
-    $stmt->bind_result($nome_usuario_bd);
-    if ($stmt->fetch() && $nome_usuario_bd) {
-        $nome_usuario = $nome_usuario_bd;
+$sql = "SELECT nome FROM Cliente WHERE id_cliente = $usuario_id";
+$resul = $conexao->query($sql);
+if ($resul && $linha = $resul->fetch_assoc()) {
+    if (!empty($linha['nome'])) {
+        $nome_usuario = $linha['nome'];
     }
-    $stmt->close();
 }
 ?>
 <!DOCTYPE html>

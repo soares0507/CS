@@ -1,5 +1,4 @@
 <?php
-// conexao.php
 
 $servidor = "localhost";
 $usuario = "root";

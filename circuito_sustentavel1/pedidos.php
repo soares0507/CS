@@ -11,7 +11,7 @@ $pedidos = [];
 
 if (isset($_SESSION['usuario_id'])) {
     $id_cliente = $_SESSION['usuario_id'];
-    // Busca pedidos do cliente
+    
     $sql = "SELECT p.id_pedido, p.data, p.status, ip.id_produto, ip.quantidade, ip.preco, pr.nome AS nome_produto, pr.imagens
             FROM Pedido p
             JOIN Item_Pedido ip ON p.id_pedido = ip.id_pedido
@@ -26,7 +26,7 @@ if (isset($_SESSION['usuario_id'])) {
     }
 } elseif (isset($_SESSION['vendedor_id'])) {
     $id_vendedor = $_SESSION['vendedor_id'];
-    // Busca pedidos do vendedor
+    
     $sql = "SELECT p.id_pedido, p.data, p.status, ip.id_produto, ip.quantidade, ip.preco, pr.nome AS nome_produto, pr.imagens
             FROM Pedido p
             JOIN Item_Pedido ip ON p.id_pedido = ip.id_pedido
@@ -167,6 +167,15 @@ if (isset($_SESSION['usuario_id'])) {
                     if (!is_array($imagens)) $imagens = explode(',', $pedido['imagens']);
                     if (!empty($imagens[0])) $img = $imagens[0];
                 }
+                // Buscar código de rastreio se necessário
+                $codigo_rastreio = '';
+                if ($pedido['status'] === 'Pedido enviado para os Correios') {
+                    $sqlR = "SELECT codigo_rastreio FROM Pedido WHERE id_pedido = '{$pedido['id_pedido']}' LIMIT 1";
+                    $resR = $conexao->query($sqlR);
+                    if ($resR && $rowR = $resR->fetch_assoc()) {
+                        $codigo_rastreio = $rowR['codigo_rastreio'];
+                    }
+                }
             ?>
             <div class="pedido-box">
                 <img src="<?= htmlspecialchars($img) ?>" class="pedido-img" alt="Produto">
@@ -176,6 +185,11 @@ if (isset($_SESSION['usuario_id'])) {
                     <span class="pedido-valor">Valor: R$ <?= number_format($pedido['preco'],2,',','.') ?></span>
                     <span class="pedido-qtd">Quantidade: <?= (int)$pedido['quantidade'] ?></span>
                     <span class="pedido-status">Status: <?= htmlspecialchars($pedido['status']) ?></span>
+                    <?php if ($pedido['status'] === 'Pedido enviado para os Correios' && !empty($codigo_rastreio)): ?>
+                        <div style="margin-top:8px;color:#1f804e;font-weight:bold;">
+                            Código de rastreio: <span style="font-family:monospace;"><?= htmlspecialchars($codigo_rastreio) ?></span>
+                        </div>
+                    <?php endif; ?>
                     <div style="margin-top:10px;display:flex;gap:10px;">
                         <form method="post" action="reembolso.php" style="display:inline;">
                             <input type="hidden" name="id_pedido" value="<?= $pedido['id_pedido'] ?>">

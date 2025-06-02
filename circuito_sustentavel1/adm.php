@@ -10,10 +10,9 @@ if (!isset($_SESSION['adm_id'])) {
 
 $id_adm = $_SESSION['adm_id'];
 $sql = "SELECT * FROM ADM WHERE id = '$id_adm'";
-$resultado = $conexao->query($sql);
-if ($resultado->num_rows > 0) {
-    $adm = $resultado->fetch_assoc();
-    // Cria variável $usuario para compatibilidade com o template
+$resul = $conexao->query($sql);
+if ($resul->num_rows > 0) {
+    $adm = $resul->fetch_assoc();
     $usuario = [
         'nome' => 'Administrador',
         'email' => $adm['email']
@@ -24,7 +23,6 @@ if ($resultado->num_rows > 0) {
     exit;
 }
 
-// Logout
 if (isset($_POST['logout'])) {
     session_destroy();
     header('Location: login.php');

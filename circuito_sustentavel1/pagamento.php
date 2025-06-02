@@ -2,7 +2,7 @@
 session_start();
 include 'conexao.php';
 
-// Limpa o flag de pedido registrado ao acessar via GET (nova compra)
+
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_SESSION['pedido_registrado'])) {
     unset($_SESSION['pedido_registrado']);
 }
@@ -33,7 +33,7 @@ $produto_unico = null;
 $produtos_carrinho = [];
 $total = 0;
 
-// Adiciona suporte para assinatura
+
 $valor_assinatura = isset($_GET['assinatura']) ? floatval($_GET['assinatura']) : 0;
 $is_assinatura = $valor_assinatura > 0;
 
@@ -110,15 +110,14 @@ $mensagem = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $metodo = $_POST['metodo'] ?? '';
     if ($metodo === 'cartao') {
-        $mensagem = "Simulação: Pagamento com cartão aprovado!";
+        $mensagem = "Pagamento com cartão aprovado!";
     } elseif ($metodo === 'pix') {
-        $mensagem = "Simulação: Pagamento via Pix gerado! Use o QR Code abaixo para pagar.";
+        $mensagem = " Pagamento via Pix gerado! Use o QR Code abaixo para pagar.";
     } elseif ($metodo === 'boleto') {
-        $mensagem = "Simulação: Boleto gerado! Clique no botão para visualizar.";
+        $mensagem = "Boleto gerado!.";
     }
 }
 
-// Cadastro de novo endereço (cliente ou vendedor)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['rua'], $_POST['numero'], $_POST['bairro'], $_POST['cidade'], $_POST['estado'], $_POST['cep'])) {
     $rua = $conexao->real_escape_string(trim($_POST['rua']));
     $numero = $conexao->real_escape_string(trim($_POST['numero']));
@@ -135,27 +134,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['rua'], $_POST['numero
     } elseif ($id_vendedor) {
         $conexao->query("INSERT INTO Endereco (id_vendedor, rua, numero, complemento, bairro, cidade, estado, cep) VALUES ('$id_vendedor', '$rua', '$numero', '$complemento', '$bairro', '$cidade', '$estado', '$cep')");
     }
-    // Após cadastrar, recarrega a página para mostrar o novo endereço
-    header("Location: pagamento.php");
+
+    // Preservar parâmetros da compra ao redirecionar
+    $params = [];
+    if (isset($_GET['id_produto'])) $params[] = 'id_produto=' . urlencode($_GET['id_produto']);
+    if (isset($_GET['quantidade'])) $params[] = 'quantidade=' . urlencode($_GET['quantidade']);
+    if (isset($_GET['assinatura'])) $params[] = 'assinatura=' . urlencode($_GET['assinatura']);
+    $query = $params ? ('?' . implode('&', $params)) : '';
+    header("Location: pagamento.php$query");
     exit;
 }
 
-// REGISTRAR PEDIDO AO CONFIRMAR PAGAMENTO
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['metodo']) && in_array($_POST['metodo'], ['cartao','pix','boleto'])) {
-    // Verifica se já não foi registrado nesta sessão
+    
     if (!isset($_SESSION['pedido_registrado'])) {
         $id_cliente = isset($_SESSION['usuario_id']) ? intval($_SESSION['usuario_id']) : null;
         $id_vendedor = isset($_SESSION['vendedor_id']) ? intval($_SESSION['vendedor_id']) : null;
         $forma_pagamento = $_POST['metodo'];
-        // Altere o status do pedido e do pagamento conforme solicitado
+       
         $status_pedido = 'Pedido enviado ao vendedor';
 
-        // Determina produtos e valores
+       
         $itens = [];
         $total_pedido = 0;
         if ($is_assinatura) {
-            // Compra de assinatura: não há itens de produto
-            // Atualiza premium no banco
+            
             if ($id_cliente) {
                 $conexao->query("UPDATE Cliente SET premium = 1 WHERE id_cliente = '$id_cliente'");
             } elseif ($id_vendedor) {
@@ -178,13 +182,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['metodo']) && in_array
                         'preco' => $prod['preco']
                     ];
                     $total_pedido += $prod['subtotal'];
-                    $id_vendedor_pedido = null; // pode ser múltiplos vendedores, mas aqui pega o último
+                    $id_vendedor_pedido = null; 
                     if (isset($prod['id_vendedor'])) $id_vendedor_pedido = $prod['id_vendedor'];
                 }
             }
         }
 
-        // Cria o pedido (apenas se não for assinatura)
+        
         if (!$is_assinatura && ($id_cliente || $id_vendedor)) {
             $sql_pedido = "INSERT INTO Pedido (id_cliente, id_vendedor, status) VALUES (" .
                 ($id_cliente ? "'$id_cliente'" : "NULL") . "," .
@@ -192,18 +196,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['metodo']) && in_array
                 "'$status_pedido')";
             if ($conexao->query($sql_pedido)) {
                 $id_pedido = $conexao->insert_id;
-                // Insere itens do pedido
+                
                 foreach ($itens as $item) {
                     $id_produto = intval($item['id_produto']);
                     $qtd = intval($item['quantidade']);
                     $preco = floatval($item['preco']);
                     $conexao->query("INSERT INTO Item_Pedido (id_pedido, id_produto, quantidade, preco) VALUES ('$id_pedido', '$id_produto', '$qtd', '$preco')");
-                    // Atualiza estoque
+                    
                     $conexao->query("UPDATE Produto SET estoque = estoque - $qtd WHERE id_produto = '$id_produto'");
                 }
-                // Insere pagamento com status Confirmado
+                
                 $conexao->query("INSERT INTO Pagamento (id_pedido, forma_pagamento, status) VALUES ('$id_pedido', '$forma_pagamento', 'Confirmado')");
-                // Limpa carrinho se não for compra direta
+               
                 if (!$id_produto_unico && isset($_SESSION['usuario_id'])) {
                     $id_cliente = $_SESSION['usuario_id'];
                     $conexao->query("DELETE FROM Item_Carrinho WHERE id_carrinho IN (SELECT id_carrinho FROM Carrinho WHERE id_cliente = '$id_cliente')");
@@ -217,7 +221,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['metodo']) && in_array
     }
 }
 
-// Buscar endereços do usuário logado (Cliente ou Vendedor)
+
 $enderecos = [];
 $endereco_selecionado = '';
 if (isset($_SESSION['usuario_id'])) {
@@ -478,11 +482,18 @@ if (isset($_SESSION['usuario_id'])) {
       color: #1f804e;
       font-size: 2rem;
       margin-bottom: 10px;
-      white-space: nowrap;
+      /* Remover white-space e overflow antigos */
+      /* white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       margin-left: -80%;
+      display: block; */
+      word-break: break-word;
+      white-space: normal;
       display: block;
+      max-width: 100%;
+      line-height: 1.2;
+      text-align: left;
     }
     .produto-unico-preco {
       color: #145c36;
@@ -567,7 +578,7 @@ if (isset($_SESSION['usuario_id'])) {
   <header>
     <div class="logo">
       <a href="loja.php"><img src="img/logo2.png" alt="Logo"></a>
-      <span class="header-title">Pagamento</span>
+      
     </div>
   </header>
   <main>
@@ -578,19 +589,19 @@ if (isset($_SESSION['usuario_id'])) {
         <?php if ($_POST['metodo'] === 'pix'): ?>
           <div class="pix-area">
             <div class="pix-qrcode">
-              <!-- Simulação QR Code -->
-              <span>PIX</span>
+              
+              <span><img src="data:image/png;base64,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"></span>
             </div>
             <div>Código Pix: <span style="font-family:monospace;">00020126360014BR.GOV.BCB.PIX0114+5585992933310520400005303986540<?= rand(10000,99999) ?></span></div>
-            <div style="margin-top:10px;color:#888;">(Simulação de QR Code)</div>
+            
           </div>
         <?php elseif ($_POST['metodo'] === 'boleto'): ?>
           <div class="boleto-area">
             <div style="font-family:monospace;font-size:1.1rem;margin-bottom:10px;">
               23793.38128 60007.135308 04000.793009 1 900000000<?= rand(100,999) ?>
             </div>
-            <button class="boleto-btn" onclick="alert('Simulação: Boleto gerado!')">Visualizar Boleto</button>
-            <div style="margin-top:10px;color:#888;">(Simulação de boleto)</div>
+           
+            
           </div>
         <?php endif; ?>
         <button class="btn-pagar" onclick="window.location.href='loja.php'">Voltar à Loja</button>
@@ -654,7 +665,14 @@ if (isset($_SESSION['usuario_id'])) {
                 </select>
               </form>
               <div id="novo-endereco-area" style="display:none;">
-                <form method="post" id="form-novo-endereco" class="endereco-form-novo">
+                <form method="post" id="form-novo-endereco" class="endereco-form-novo"
+                  action="pagamento.php<?= 
+                    (isset($_GET['id_produto']) || isset($_GET['quantidade']) || isset($_GET['assinatura'])) 
+                    ? '?' . http_build_query(array_filter([
+                        'id_produto' => $_GET['id_produto'] ?? null,
+                        'quantidade' => $_GET['quantidade'] ?? null,
+                        'assinatura' => $_GET['assinatura'] ?? null
+                      ])) : '' ?>">
                   <label>Rua: <input type="text" name="rua" required></label>
                   <label>Número: <input type="text" name="numero" required></label>
                   <label>Complemento: <input type="text" name="complemento"></label>
@@ -676,7 +694,14 @@ if (isset($_SESSION['usuario_id'])) {
               </script>
             <?php else: ?>
               <div id="novo-endereco-area">
-                <form method="post" id="form-novo-endereco" class="endereco-form-novo">
+                <form method="post" id="form-novo-endereco" class="endereco-form-novo"
+                  action="pagamento.php<?= 
+                    (isset($_GET['id_produto']) || isset($_GET['quantidade']) || isset($_GET['assinatura'])) 
+                    ? '?' . http_build_query(array_filter([
+                        'id_produto' => $_GET['id_produto'] ?? null,
+                        'quantidade' => $_GET['quantidade'] ?? null,
+                        'assinatura' => $_GET['assinatura'] ?? null
+                      ])) : '' ?>">
                   <label>Rua: <input type="text" name="rua" required></label>
                   <label>Número: <input type="text" name="numero" required></label>
                   <label>Complemento: <input type="text" name="complemento"></label>

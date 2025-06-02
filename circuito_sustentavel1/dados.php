@@ -10,17 +10,17 @@ $erro = '';
 if (isset($_SESSION['usuario_id'])) {
     $id = $_SESSION['usuario_id'];
     $sql = "SELECT * FROM Cliente WHERE id_cliente = '$id'";
-    $res = $conexao->query($sql);
-    if ($res && $res->num_rows > 0) {
-        $usuario = $res->fetch_assoc();
+    $resultado = $conexao->query($sql);
+    if ($resultado && $resultado->num_rows > 0) {
+        $usuario = $resultado->fetch_assoc();
         $tipo = 'cliente';
     }
 } elseif (isset($_SESSION['vendedor_id'])) {
     $id = $_SESSION['vendedor_id'];
     $sql = "SELECT * FROM Vendedor WHERE id_vendedor = '$id'";
-    $res = $conexao->query($sql);
-    if ($res && $res->num_rows > 0) {
-        $usuario = $res->fetch_assoc();
+    $resultado = $conexao->query($sql);
+    if ($resultado && $resultado->num_rows > 0) {
+        $usuario = $resultado->fetch_assoc();
         $tipo = 'vendedor';
     }
 }
@@ -30,42 +30,39 @@ if (!$usuario) {
     exit;
 }
 
-// Função para editar dados
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['editar_dados'])) {
-    $novo_nome = trim($_POST['nome']);
-    $novo_email = trim($_POST['email']);
-    $novo_telefone = trim($_POST['telefone']);
-    $novo_cpf = $usuario['cpf']; // CPF não pode ser alterado
-
-    // Verifica se o email já existe para outro usuário
+    $novo_nome = $_POST['nome'];
+    $novo_email = $_POST['email'];
+    $novo_telefone = $_POST['telefone'];
+//Essa bct finalmente funciona
     if ($tipo === 'cliente') {
         $sql_verifica = "SELECT id_cliente FROM Cliente WHERE email = '$novo_email' AND id_cliente != '$id'";
     } else {
         $sql_verifica = "SELECT id_vendedor FROM Vendedor WHERE email = '$novo_email' AND id_vendedor != '$id'";
     }
-    $res_verifica = $conexao->query($sql_verifica);
-    if ($res_verifica && $res_verifica->num_rows > 0) {
-        $erro = "E-mail já está em uso por outro usuário!";
+    $resultado_verifica = $conexao->query($sql_verifica);
+    if ($resultado_verifica && $resultado_verifica->num_rows > 0) {
+        $mensagem_erro = "E-mail já está em uso por outro usuário!";
     } else {
         if ($tipo === 'cliente') {
-            $sql_upd = "UPDATE Cliente SET nome='$novo_nome', email='$novo_email', telefone='$novo_telefone' WHERE id_cliente='$id'";
+            $sql_atualiza = "UPDATE Cliente SET nome='$novo_nome', email='$novo_email', telefone='$novo_telefone' WHERE id_cliente='$id'";
         } else {
-            $sql_upd = "UPDATE Vendedor SET nome='$novo_nome', email='$novo_email', telefone='$novo_telefone' WHERE id_vendedor='$id'";
+            $sql_atualiza = "UPDATE Vendedor SET nome='$novo_nome', email='$novo_email', telefone='$novo_telefone' WHERE id_vendedor='$id'";
         }
-        if ($conexao->query($sql_upd) === TRUE) {
-            $sucesso = "Dados atualizados com sucesso!";
-            // Atualiza os dados exibidos
+        if ($conexao->query($sql_atualiza) === TRUE) {
+            $mensagem_sucesso = "Dados atualizados com sucesso!";
+            
             if ($tipo === 'cliente') {
                 $sql = "SELECT * FROM Cliente WHERE id_cliente = '$id'";
             } else {
                 $sql = "SELECT * FROM Vendedor WHERE id_vendedor = '$id'";
             }
-            $res = $conexao->query($sql);
-            if ($res && $res->num_rows > 0) {
-                $usuario = $res->fetch_assoc();
+            $resultado = $conexao->query($sql);
+            if ($resultado && $resultado->num_rows > 0) {
+                $usuario = $resultado->fetch_assoc();
             }
         } else {
-            $erro = "Erro ao atualizar dados: " . $conexao->error;
+            $mensagem_erro = "Erro ao atualizar dados!";
         }
     }
 }
