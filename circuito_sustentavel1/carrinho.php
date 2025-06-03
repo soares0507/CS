@@ -185,7 +185,7 @@ if ($res && $res->num_rows > 0) {
             <a href="loja.php"><img src="img/logo2.png" alt="Logo"></a>
         </div>
         <div style="margin-left:auto;">
-            <button onclick="window.history.back()" style="background: none; border: none; font-size: 2rem; color: #1f804e; cursor: pointer; font-weight: bold;">&#10005;</button>
+            <button onclick="window.location.href='loja.php'" style="background: none; border: none; font-size: 2rem; color: #1f804e; cursor: pointer; font-weight: bold;">&#10005;</button>
         </div>
     </header>
     <main>

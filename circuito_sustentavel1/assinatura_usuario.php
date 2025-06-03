@@ -523,7 +523,7 @@
           answer.classList.remove('open');
         } else {
           answer.classList.add('open'); // Adiciona padding via classe
-          answer.style.maxHeight = answer.scrollHeight + "100px"; // Define a altura correta
+          answer.style.maxHeight = answer.scrollHeight + "1px"; // Define a altura correta
         }
       });
     });

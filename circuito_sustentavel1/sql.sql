@@ -55,6 +55,7 @@ CREATE TABLE Pedido (
     id_cliente INT,
     id_vendedor INT NULL,
     data DATETIME DEFAULT CURRENT_TIMESTAMP,
+    codigo_rastreio VARCHAR(100) NULL,
     status VARCHAR(50),
     FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente),
     FOREIGN KEY (id_vendedor) REFERENCES Vendedor(id_vendedor)

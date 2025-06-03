@@ -641,7 +641,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
             </div>
         <?php endif; ?>
         <a href="loja.php" aria-label="C+ Moedas" title="Minhas Moedas">
-            <img src="img/C+.png" alt="C+ Moedas" class="action-icon">
+            <img src="img/loja.png" alt="C+ Moedas" class="action-icon">
         </a>
         <a href="<?= htmlspecialchars($link_carrinho_header) ?>" aria-label="Carrinho de Compras" title="Carrinho">
             <img src="<?= htmlspecialchars($imagem_carrinho_header) ?>" alt="Carrinho" class="action-icon">
@@ -699,17 +699,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
                 </form>
             </div>
             <?php endif; ?>
-
-            <div class="cv-post-feed">
-                <?php 
-                $post_delay_animacao = 0;
-                foreach ($posts_comunidade as $post): 
-                    $post_anim_delay_class = 'delay-0-' . (($post_delay_animacao % 2) * 2 + 1) . 's'; // 0.1s, 0.3s
-                ?>
-                <article class="cv-post-card animate-on-scroll <?= $post_anim_delay_class ?>" data-post-id="<?= $post['id'] ?>">
-                    <div class="post-header">
-                        <div class="post-author-avatar">
-                            <img src="<?= htmlspecialchars($post['autor_foto']) ?>" alt="Foto de <?= htmlspecialchars($post['autor_nome']) ?>">
+            <div class="comentario-autor">
+                <div class="cv-post-feed">
+                    <?php 
+                    $post_delay_animacao = 0;
+                    foreach ($posts_comunidade as $post): 
+                        $post_anim_delay_class = 'delay-0-' . (($post_delay_animacao % 2) * 2 + 1) . 's'; // 0.1s, 0.3s
+                    ?>
+                    <article class="cv-post-card animate-on-scroll <?= $post_anim_delay_class ?>" data-post-id="<?= $post['id'] ?>">
+                        <div class="post-header">
+                            <div class="post-author-avatar">
+                                <img src="<?= htmlspecialchars($post['autor_foto']) ?>" alt="Foto de <?= htmlspecialchars($post['autor_nome']) ?>">
                         </div>
                         <div class="post-author-info">
                             <h5><?= htmlspecialchars($post['autor_nome']) ?></h5>
@@ -925,7 +925,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
                     } else {
                         comentariosArea.innerHTML = data.comentarios.map(c =>
                             `<div class="comentario-item">
-                                <span class="comentario-autor">${c.autor}</span>
+                                <span style="font-weight: bold;" class="comentario-autor">${c.autor}</span>
                                 <span class="comentario-data">${c.data}</span>
                                 <div class="comentario-conteudo">${c.conteudo.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>
                             </div>`

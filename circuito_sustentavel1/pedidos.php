@@ -12,7 +12,7 @@ $pedidos = [];
 if (isset($_SESSION['usuario_id'])) {
     $id_cliente = $_SESSION['usuario_id'];
     
-    $sql = "SELECT p.id_pedido, p.data, p.status, ip.id_produto, ip.quantidade, ip.preco, pr.nome AS nome_produto, pr.imagens
+    $sql = "SELECT p.id_pedido, p.data, p.status, p.codigo_rastreio, ip.id_produto, ip.quantidade, ip.preco, pr.nome AS nome_produto, pr.imagens
             FROM Pedido p
             JOIN Item_Pedido ip ON p.id_pedido = ip.id_pedido
             JOIN Produto pr ON ip.id_produto = pr.id_produto
@@ -21,13 +21,18 @@ if (isset($_SESSION['usuario_id'])) {
     $res = $conexao->query($sql);
     if ($res && $res->num_rows > 0) {
         while ($row = $res->fetch_assoc()) {
-            $pedidos[] = $row;
+            $pedidos[$row['id_pedido']]['info'] = [
+                'data' => $row['data'],
+                'status' => $row['status'],
+                'codigo_rastreio' => isset($row['codigo_rastreio']) ? $row['codigo_rastreio'] : '',
+            ];
+            $pedidos[$row['id_pedido']]['itens'][] = $row;
         }
     }
 } elseif (isset($_SESSION['vendedor_id'])) {
     $id_vendedor = $_SESSION['vendedor_id'];
     
-    $sql = "SELECT p.id_pedido, p.data, p.status, ip.id_produto, ip.quantidade, ip.preco, pr.nome AS nome_produto, pr.imagens
+    $sql = "SELECT p.id_pedido, p.data, p.status, p.codigo_rastreio, ip.id_produto, ip.quantidade, ip.preco, pr.nome AS nome_produto, pr.imagens
             FROM Pedido p
             JOIN Item_Pedido ip ON p.id_pedido = ip.id_pedido
             JOIN Produto pr ON ip.id_produto = pr.id_produto
@@ -36,7 +41,12 @@ if (isset($_SESSION['usuario_id'])) {
     $res = $conexao->query($sql);
     if ($res && $res->num_rows > 0) {
         while ($row = $res->fetch_assoc()) {
-            $pedidos[] = $row;
+            $pedidos[$row['id_pedido']]['info'] = [
+                'data' => $row['data'],
+                'status' => $row['status'],
+                'codigo_rastreio' => isset($row['codigo_rastreio']) ? $row['codigo_rastreio'] : '',
+            ];
+            $pedidos[$row['id_pedido']]['itens'][] = $row;
         }
     }
 }
@@ -160,46 +170,50 @@ if (isset($_SESSION['usuario_id'])) {
         <?php if (empty($pedidos)): ?>
             <div style="color:#888;text-align:center;font-size:1.1rem;">Nenhum pedido encontrado.</div>
         <?php else: ?>
-            <?php foreach ($pedidos as $pedido): 
-                $img = 'img/sem-imagem.png';
-                if (!empty($pedido['imagens'])) {
-                    $imagens = json_decode($pedido['imagens'], true);
-                    if (!is_array($imagens)) $imagens = explode(',', $pedido['imagens']);
-                    if (!empty($imagens[0])) $img = $imagens[0];
-                }
-                // Buscar código de rastreio se necessário
-                $codigo_rastreio = '';
-                if ($pedido['status'] === 'Pedido enviado para os Correios') {
-                    $sqlR = "SELECT codigo_rastreio FROM Pedido WHERE id_pedido = '{$pedido['id_pedido']}' LIMIT 1";
-                    $resR = $conexao->query($sqlR);
-                    if ($resR && $rowR = $resR->fetch_assoc()) {
-                        $codigo_rastreio = $rowR['codigo_rastreio'];
-                    }
-                }
+            <?php foreach ($pedidos as $id_pedido => $pedido): 
+                $info = $pedido['info'];
+                $status = $info['status'];
+                $codigo_rastreio = $info['codigo_rastreio'];
             ?>
-            <div class="pedido-box">
-                <img src="<?= htmlspecialchars($img) ?>" class="pedido-img" alt="Produto">
-                <div class="pedido-info">
-                    <span class="pedido-produto-nome"><?= htmlspecialchars($pedido['nome_produto']) ?></span>
-                    <span class="pedido-data">Data: <?= date('d/m/Y H:i', strtotime($pedido['data'])) ?></span>
-                    <span class="pedido-valor">Valor: R$ <?= number_format($pedido['preco'],2,',','.') ?></span>
-                    <span class="pedido-qtd">Quantidade: <?= (int)$pedido['quantidade'] ?></span>
-                    <span class="pedido-status">Status: <?= htmlspecialchars($pedido['status']) ?></span>
-                    <?php if ($pedido['status'] === 'Pedido enviado para os Correios' && !empty($codigo_rastreio)): ?>
-                        <div style="margin-top:8px;color:#1f804e;font-weight:bold;">
-                            Código de rastreio: <span style="font-family:monospace;"><?= htmlspecialchars($codigo_rastreio) ?></span>
+            <div class="pedido-box" style="flex-direction:column;align-items:stretch;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <span style="color:#888;">Pedido #<?= $id_pedido ?></span>
+                    <span class="pedido-status">Status: <?= htmlspecialchars($status) ?></span>
+                </div>
+                <div class="pedido-data">Data: <?= date('d/m/Y H:i', strtotime($info['data'])) ?></div>
+                <div style="margin:10px 0;">
+                    <?php foreach ($pedido['itens'] as $item): 
+                        $img = 'img/sem-imagem.png';
+                        if (!empty($item['imagens'])) {
+                            $imagens = json_decode($item['imagens'], true);
+                            if (!is_array($imagens)) $imagens = explode(',', $item['imagens']);
+                            if (!empty($imagens[0])) $img = $imagens[0];
+                        }
+                    ?>
+                    <div style="display:flex;align-items:center;gap:22px;margin-bottom:10px;">
+                        <img src="<?= htmlspecialchars($img) ?>" class="pedido-img" alt="Produto">
+                        <div class="pedido-info">
+                            <span class="pedido-produto-nome"><?= htmlspecialchars($item['nome_produto']) ?></span>
+                            <span class="pedido-valor">Valor: R$ <?= number_format($item['preco'],2,',','.') ?></span>
+                            <span class="pedido-qtd">Quantidade: <?= (int)$item['quantidade'] ?></span>
                         </div>
-                    <?php endif; ?>
-                    <div style="margin-top:10px;display:flex;gap:10px;">
-                        <form method="post" action="reembolso.php" style="display:inline;">
-                            <input type="hidden" name="id_pedido" value="<?= $pedido['id_pedido'] ?>">
-                            <button type="submit" style="background:#eb3b3b;color:#fff;border:none;border-radius:6px;padding:7px 18px;font-weight:bold;cursor:pointer;">Solicitar Reembolso</button>
-                        </form>
-                        <form method="post" action="confirmar_recebimento.php" style="display:inline;">
-                            <input type="hidden" name="id_pedido" value="<?= $pedido['id_pedido'] ?>">
-                            <button type="submit" style="background:#28a060;color:#fff;border:none;border-radius:6px;padding:7px 18px;font-weight:bold;cursor:pointer;">Confirmar Recebimento</button>
-                        </form>
                     </div>
+                    <?php endforeach; ?>
+                </div>
+                <?php if ($status === 'Pedido enviado para os Correios' && !empty($codigo_rastreio)): ?>
+                    <div style="margin-top:8px;color:#1f804e;font-weight:bold;">
+                        Código de rastreio: <span style="font-family:monospace;"><?= htmlspecialchars($codigo_rastreio) ?></span>
+                    </div>
+                <?php endif; ?>
+                <div style="margin-top:10px;display:flex;gap:10px;">
+                    <form method="post" action="reembolso.php" style="display:inline;">
+                        <input type="hidden" name="id_pedido" value="<?= $id_pedido ?>">
+                        <button type="submit" style="background:#eb3b3b;color:#fff;border:none;border-radius:6px;padding:7px 18px;font-weight:bold;cursor:pointer;">Solicitar Reembolso</button>
+                    </form>
+                    <form method="post" action="confirmar_recebimento.php" style="display:inline;">
+                        <input type="hidden" name="id_pedido" value="<?= $id_pedido ?>">
+                        <button type="submit" style="background:#28a060;color:#fff;border:none;border-radius:6px;padding:7px 18px;font-weight:bold;cursor:pointer;">Confirmar Recebimento</button>
+                    </form>
                 </div>
             </div>
             <?php endforeach; ?>

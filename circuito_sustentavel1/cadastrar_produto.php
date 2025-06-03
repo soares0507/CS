@@ -48,9 +48,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $sql = "INSERT INTO Produto (nome, descricao, preco, estoque, id_vendedor, imagens) VALUES ('$nome_produto', '$descricao_produto', '$preco_produto', '$estoque_produto', '$id_vendedor', '$imagens_json')";
         if ($conexao->query($sql)) {
-            $mensagem_sucesso = "Produto cadastrado com sucesso!";
+            $sucesso = "Produto cadastrado com sucesso!";
         } else {
-            $mensagem_erro = "Erro ao cadastrar produto!";
+            $erro = "Erro ao cadastrar produto!";
         }
     }
 }
@@ -180,7 +180,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <header>
     <div class="logo">
       <a href="loja.php"><img src="img/logo2.png" alt="Logo"></a>
-      <span class="header-title">Painel do Vendedor</span>
+    </div>
+    <div style="margin-left:78%;">
+      <button onclick="window.location.href='produtos.php'" style="background: none; border: none; font-size: 2rem; color: #1f804e; cursor: pointer; font-weight: bold;">&#10005;</button>
     </div>
   </header>
   <main>
@@ -210,7 +212,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <div class="botoes">
           <button type="submit" class="botao-acao">Cadastrar</button>
-          <button type="button" class="botao-acao" onclick="window.location.href='produtos.php'">Voltar</button>
+          
         </div>
       </form>
     </div>

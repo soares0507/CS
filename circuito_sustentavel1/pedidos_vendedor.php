@@ -17,21 +17,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id_pedido'], $_POST['
     $novo_status = $_POST['novo_status'];
     $codigo_rastreio = isset($_POST['codigo_rastreio']) ? trim($_POST['codigo_rastreio']) : null;
 
-    if ($novo_status === 'Pedido enviado para os Correios' && $codigo_rastreio) {
-        $sql = "UPDATE Pedido SET status=?, codigo_rastreio=? WHERE id_pedido=? AND id_vendedor=?";
-        $stmt = $conexao->prepare($sql);
-        $stmt->bind_param("ssii", $novo_status, $codigo_rastreio, $id_pedido, $id_vendedor);
+    // Verifica se o vendedor tem produtos neste pedido
+    $verifica = $conexao->prepare("SELECT COUNT(*) FROM Item_Pedido ip JOIN Produto pr ON ip.id_produto = pr.id_produto WHERE ip.id_pedido=? AND pr.id_vendedor=?");
+    $verifica->bind_param("ii", $id_pedido, $id_vendedor);
+    $verifica->execute();
+    $verifica->bind_result($tem_produto);
+    $verifica->fetch();
+    $verifica->close();
+
+    if ($tem_produto > 0) {
+        if ($novo_status === 'Pedido enviado para os Correios' && $codigo_rastreio) {
+            $sql = "UPDATE Pedido SET status=?, codigo_rastreio=? WHERE id_pedido=?";
+            $stmt = $conexao->prepare($sql);
+            $stmt->bind_param("ssi", $novo_status, $codigo_rastreio, $id_pedido);
+        } else {
+            $sql = "UPDATE Pedido SET status=?, codigo_rastreio=NULL WHERE id_pedido=?";
+            $stmt = $conexao->prepare($sql);
+            $stmt->bind_param("si", $novo_status, $id_pedido);
+        }
+        if ($stmt->execute()) {
+            $mensagem = "Status do pedido atualizado!";
+        } else {
+            $mensagem = "Erro ao atualizar status!";
+        }
+        $stmt->close();
     } else {
-        $sql = "UPDATE Pedido SET status=?, codigo_rastreio=NULL WHERE id_pedido=? AND id_vendedor=?";
-        $stmt = $conexao->prepare($sql);
-        $stmt->bind_param("sii", $novo_status, $id_pedido, $id_vendedor);
+        $mensagem = "Você não tem permissão para alterar este pedido.";
     }
-    if ($stmt->execute()) {
-        $mensagem = "Status do pedido atualizado!";
-    } else {
-        $mensagem = "Erro ao atualizar status!";
-    }
-    $stmt->close();
 }
 
 // Busca todos os pedidos dos produtos do vendedor
@@ -58,7 +70,34 @@ $res = $stmt->get_result();
 
 $pedidos = [];
 while ($row = $res->fetch_assoc()) {
-    $pedidos[$row['id_pedido']][] = $row;
+    $id_pedido = $row['id_pedido'];
+    if (!isset($pedidos[$id_pedido])) {
+        $pedidos[$id_pedido] = [
+            'info' => [
+                'data' => $row['data'],
+                'status' => $row['status'],
+                'codigo_rastreio' => $row['codigo_rastreio'],
+                'cliente_nome' => $row['cliente_nome'],
+                'cliente_email' => $row['cliente_email'],
+                'cliente_telefone' => $row['cliente_telefone'],
+                'rua' => $row['rua'],
+                'numero' => $row['numero'],
+                'complemento' => $row['complemento'],
+                'bairro' => $row['bairro'],
+                'cidade' => $row['cidade'],
+                'estado' => $row['estado'],
+                'cep' => $row['cep'],
+            ],
+            'itens' => []
+        ];
+    }
+    $pedidos[$id_pedido]['itens'][] = [
+        'id_produto' => $row['id_produto'],
+        'produto_nome' => $row['produto_nome'],
+        'imagens' => $row['imagens'],
+        'quantidade' => $row['quantidade'],
+        'preco' => $row['preco']
+    ];
 }
 $stmt->close();
 ?>
@@ -242,7 +281,9 @@ $stmt->close();
   <header>
     <div class="logo">
       <a href="loja.php"><img src="img/logo2.png" alt="Logo"></a>
-      
+    </div>
+    <div style="margin-left:78%;">
+      <button onclick="window.location.href='produtos.php'" style="background: none; border: none; font-size: 2rem; color: #1f804e; cursor: pointer; font-weight: bold;">&#10005;</button>
     </div>
   </header>
   <main>
@@ -254,21 +295,21 @@ $stmt->close();
       <?php if (empty($pedidos)): ?>
         <div style="color:#888;text-align:center;">Nenhum pedido encontrado.</div>
       <?php else: ?>
-        <?php foreach ($pedidos as $id_pedido => $itens): 
-          $pedido = $itens[0];
-          $status = $pedido['status'];
-          $codigo_rastreio = $pedido['codigo_rastreio'];
+        <?php foreach ($pedidos as $id_pedido => $pedido): 
+          $info = $pedido['info'];
+          $status = $info['status'];
+          $codigo_rastreio = $info['codigo_rastreio'];
         ?>
         <div class="pedido-box">
           <div class="pedido-header">
             <div>
               <span style="color:#888;">Pedido #<?= $id_pedido ?></span>
-              <span style="margin-left:18px;color:#888;">Data: <?= date('d/m/Y H:i', strtotime($pedido['data'])) ?></span>
+              <span style="margin-left:18px;color:#888;">Data: <?= date('d/m/Y H:i', strtotime($info['data'])) ?></span>
             </div>
             <div class="pedido-status">Status: <?= htmlspecialchars($status) ?></div>
           </div>
           <div class="pedido-produtos">
-            <?php foreach ($itens as $item): 
+            <?php foreach ($pedido['itens'] as $item): 
               $imagens = [];
               if (!empty($item['imagens'])) {
                 $imagens = json_decode($item['imagens'], true);
@@ -286,13 +327,13 @@ $stmt->close();
             <?php endforeach; ?>
           </div>
           <div class="cliente-info">
-            <strong>Cliente:</strong> <?= htmlspecialchars($pedido['cliente_nome']) ?> | <?= htmlspecialchars($pedido['cliente_email']) ?> | <?= htmlspecialchars($pedido['cliente_telefone']) ?>
+            <strong>Cliente:</strong> <?= htmlspecialchars($info['cliente_nome']) ?> | <?= htmlspecialchars($info['cliente_email']) ?> | <?= htmlspecialchars($info['cliente_telefone']) ?>
           </div>
           <div class="endereco-info">
             <strong>Endereço:</strong>
-            <?= htmlspecialchars($pedido['rua']) ?>, <?= htmlspecialchars($pedido['numero']) ?>
-            <?= $pedido['complemento'] ? ' - '.htmlspecialchars($pedido['complemento']) : '' ?>,
-            <?= htmlspecialchars($pedido['bairro']) ?>, <?= htmlspecialchars($pedido['cidade']) ?>/<?= htmlspecialchars($pedido['estado']) ?> - CEP: <?= htmlspecialchars($pedido['cep']) ?>
+            <?= htmlspecialchars($info['rua']) ?>, <?= htmlspecialchars($info['numero']) ?>
+            <?= $info['complemento'] ? ' - '.htmlspecialchars($info['complemento']) : '' ?>,
+            <?= htmlspecialchars($info['bairro']) ?>, <?= htmlspecialchars($info['cidade']) ?>/<?= htmlspecialchars($info['estado']) ?> - CEP: <?= htmlspecialchars($info['cep']) ?>
           </div>
           <form method="post" class="pedido-actions" style="margin-top:1.2rem;">
             <input type="hidden" name="id_pedido" value="<?= $id_pedido ?>">

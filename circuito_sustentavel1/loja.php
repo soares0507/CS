@@ -481,7 +481,7 @@ if(isset($_SESSION['vendedor_id'])) {
             </div>
         <?php endif; ?>
         <a href="rs.php" aria-label="C+ Moedas">
-            <img src="img/C+.png" alt="C+ Moedas" class="action-icon">
+            <img src="img/rs.png" alt="C+ Moedas" class="action-icon">
         </a>
         <a href="<?= htmlspecialchars($link_carrinho) ?>" aria-label="Carrinho de Compras">
             <img src="<?= htmlspecialchars($imagem_carrinho) ?>" alt="Carrinho" class="action-icon">

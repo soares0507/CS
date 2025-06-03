@@ -251,7 +251,10 @@ while ($row = $result->fetch_assoc()) {
   <header>
     <div class="logo">
       <a href="loja.php"><img src="img/logo2.png" alt="Logo"></a>
-      <span class="header-title">Painel do Vendedor</span>
+      
+    </div>
+    <div style="margin-left:78%;">
+      <button onclick="window.location.href='produtos.php'" style="background: none; border: none; font-size: 2rem; color: #1f804e; cursor: pointer; font-weight: bold;">&#10005;</button>
     </div>
   </header>
   <main>
@@ -277,7 +280,7 @@ while ($row = $result->fetch_assoc()) {
           </div>
         <?php endforeach; ?>
       </div>
-      <button class="botao-editar" onclick="location.href='produtos.php'">Voltar</button>
+      
     </div>
   </main>
 </body>
