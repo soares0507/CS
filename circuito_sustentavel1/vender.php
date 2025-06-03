@@ -30,113 +30,63 @@ if ($res_v && $res_v->num_rows > 0) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['virar_vendedor'])) {
-    $foto_rg_frente = '';
-    $foto_rg_verso = '';
-    $foto_usuario = '';
-    $upload_dir = 'img/';
+    $nome = $cliente['nome'];
+    $email = $cliente['email'];
+    $cpf = $cliente['cpf'];
+    $telefone = $cliente['telefone'];
+    $senha = $cliente['senha']; 
 
-    if (isset($_FILES['foto_usuario']) && $_FILES['foto_usuario']['error'] == UPLOAD_ERR_OK) {
-        $ext = pathinfo($_FILES['foto_usuario']['name'], PATHINFO_EXTENSION);
-        $foto_usuario = 'vendedor_foto_' . uniqid() . '.' . $ext;
-        if (!move_uploaded_file($_FILES['foto_usuario']['tmp_name'], $upload_dir . $foto_usuario)) {
-            $erro = "Erro ao fazer upload da foto do usuário.";
-        }
-    } else if (isset($_FILES['foto_usuario']) && $_FILES['foto_usuario']['error'] != UPLOAD_ERR_NO_FILE) {
-        $erro = "Erro no upload da foto do usuário: " . $_FILES['foto_usuario']['error'];
-    }
+    $sql_verifica = "SELECT id_vendedor FROM Vendedor WHERE email = ?";
+    $stmt_check = $conexao->prepare($sql_verifica);
+    $stmt_check->bind_param("s", $email);
+    $stmt_check->execute();
+    $res_verifica = $stmt_check->get_result();
 
-    if (isset($_FILES['foto_rg_frente']) && $_FILES['foto_rg_frente']['error'] == UPLOAD_ERR_OK) {
-        $ext = pathinfo($_FILES['foto_rg_frente']['name'], PATHINFO_EXTENSION);
-        $foto_rg_frente = 'rg_frente_' . uniqid() . '.' . $ext;
-         if (!move_uploaded_file($_FILES['foto_rg_frente']['tmp_name'], $upload_dir . $foto_rg_frente)) {
-            $erro = "Erro ao fazer upload da foto do RG (frente).";
-        }
-    } else if (isset($_FILES['foto_rg_frente']) && $_FILES['foto_rg_frente']['error'] != UPLOAD_ERR_NO_FILE) {
-         $erro = "Erro no upload da foto do RG (frente): " . $_FILES['foto_rg_frente']['error'];
-    }
+    if ($res_verifica && $res_verifica->num_rows > 0) {
+        $erro = "Já existe um vendedor cadastrado com este e-mail!";
+    } else {
+        $conexao->begin_transaction();
+        try {
+            $sql_insert_vendedor = "INSERT INTO Vendedor (nome, email, senha, cpf, telefone) VALUES (?, ?, ?, ?, ?)";
+            $stmt_vendedor = $conexao->prepare($sql_insert_vendedor);
+            $stmt_vendedor->bind_param("sssss", $nome, $email, $senha, $cpf, $telefone);
 
-    if (isset($_FILES['foto_rg_verso']) && $_FILES['foto_rg_verso']['error'] == UPLOAD_ERR_OK) {
-        $ext = pathinfo($_FILES['foto_rg_verso']['name'], PATHINFO_EXTENSION);
-        $foto_rg_verso = 'rg_verso_' . uniqid() . '.' . $ext;
-        if (!move_uploaded_file($_FILES['foto_rg_verso']['tmp_name'], $upload_dir . $foto_rg_verso)) {
-            $erro = "Erro ao fazer upload da foto do RG (verso).";
-        }
-    } else if (isset($_FILES['foto_rg_verso']) && $_FILES['foto_rg_verso']['error'] != UPLOAD_ERR_NO_FILE) {
-        $erro = "Erro no upload da foto do RG (verso): " . $_FILES['foto_rg_verso']['error'];
-    }
-    
-    if (empty($foto_usuario) || empty($foto_rg_frente) || empty($foto_rg_verso)) {
-        if(empty($erro)) $erro = "Todos os documentos (foto pessoal, RG frente e verso) são obrigatórios.";
-    }
+            if ($stmt_vendedor->execute()) {
+                $id_vendedor = $conexao->insert_id;
 
-    if (empty($erro)) {
-        $nome = $cliente['nome'];
-        $email = $cliente['email'];
-        $cpf = $cliente['cpf'];
-        $telefone = $cliente['telefone'];
-        $senha = $cliente['senha']; 
-
-        $sql_verifica = "SELECT id_vendedor FROM Vendedor WHERE email = ?";
-        $stmt_check = $conexao->prepare($sql_verifica);
-        $stmt_check->bind_param("s", $email);
-        $stmt_check->execute();
-        $res_verifica = $stmt_check->get_result();
-
-        if ($res_verifica && $res_verifica->num_rows > 0) {
-            $erro = "Já existe um vendedor cadastrado com este e-mail!";
-        } else {
-            $conexao->begin_transaction();
-            try {
-                $sql_insert_vendedor = "INSERT INTO Vendedor (nome, email, senha, cpf, telefone) VALUES (?, ?, ?, ?, ?)";
-                $stmt_vendedor = $conexao->prepare($sql_insert_vendedor);
-                $stmt_vendedor->bind_param("sssss", $nome, $email, $senha, $cpf, $telefone);
-
-                if ($stmt_vendedor->execute()) {
-                    $id_vendedor = $conexao->insert_id;
-
-                    $sql_insert_docs = "INSERT INTO DocumentosVendedor (id_vendedor, foto_usuario, foto_rg_frente, foto_rg_verso) VALUES (?, ?, ?, ?)";
-                    $stmt_docs = $conexao->prepare($sql_insert_docs);
-                    $stmt_docs->bind_param("isss", $id_vendedor, $foto_usuario, $foto_rg_frente, $foto_rg_verso);
-                    $stmt_docs->execute();
-
-                    $tabelas_para_atualizar = ['Cotidiano', 'Endereco', 'Moeda', 'Assinatura', 'Pedido', 'Carrinho', 'Postagem', 'Comentario', 'Pergunta'];
-                    foreach ($tabelas_para_atualizar as $tabela) {
-                        // Atualiza id_vendedor e zera id_cliente para evitar violação de FK
-                        $sql_update_fk = "UPDATE $tabela SET id_vendedor = ?, id_cliente = NULL WHERE id_cliente = ?";
-                        $stmt_update = $conexao->prepare($sql_update_fk);
-                        $stmt_update->bind_param("ii", $id_vendedor, $id_cliente);
-                        if (!$stmt_update->execute()) {
-                            throw new Exception("Erro ao atualizar $tabela: " . $stmt_update->error);
-                        }
+                $tabelas_para_atualizar = ['Cotidiano', 'Endereco', 'Moeda', 'Assinatura', 'Pedido', 'Carrinho', 'Postagem', 'Comentario', 'Pergunta'];
+                foreach ($tabelas_para_atualizar as $tabela) {
+                    $sql_update_fk = "UPDATE $tabela SET id_vendedor = ?, id_cliente = NULL WHERE id_cliente = ?";
+                    $stmt_update = $conexao->prepare($sql_update_fk);
+                    $stmt_update->bind_param("ii", $id_vendedor, $id_cliente);
+                    if (!$stmt_update->execute()) {
+                        throw new Exception("Erro ao atualizar $tabela: " . $stmt_update->error);
                     }
-                    
-                    $sql_delete_cliente = "DELETE FROM Cliente WHERE id_cliente = ?";
-                    $stmt_delete = $conexao->prepare($sql_delete_cliente);
-                    $stmt_delete->bind_param("i", $id_cliente);
-                    if (!$stmt_delete->execute()) {
-                        throw new Exception("Erro ao deletar cliente: " . $stmt_delete->error);
-                    }
-
-                    $conexao->commit();
-
-                    $_SESSION['vendedor_id'] = $id_vendedor;
-                    unset($_SESSION['usuario_id']);
-                    $_SESSION['nome_usuario'] = $nome;
-                    $_SESSION['tipo_usuario'] = 'vendedor';
-
-                    $sucesso = "Parabéns! Você agora é um vendedor! Redirecionando para o seu painel...";
-                    echo "<script>setTimeout(function(){ window.location.href = 'vendedor.php'; }, 3000);</script>";
-
-                } else {
-                    throw new Exception("Erro ao criar conta de vendedor: " . $stmt_vendedor->error);
                 }
-            } catch (Exception $e) {
-                $conexao->rollback();
-                $erro = $e->getMessage();
-                if ($foto_rg_frente && file_exists($upload_dir . $foto_rg_frente)) unlink($upload_dir . $foto_rg_frente);
-                if ($foto_rg_verso && file_exists($upload_dir . $foto_rg_verso)) unlink($upload_dir . $foto_rg_verso);
-                if ($foto_usuario && file_exists($upload_dir . $foto_usuario)) unlink($upload_dir . $foto_usuario);
+                
+                $sql_delete_cliente = "DELETE FROM Cliente WHERE id_cliente = ?";
+                $stmt_delete = $conexao->prepare($sql_delete_cliente);
+                $stmt_delete->bind_param("i", $id_cliente);
+                if (!$stmt_delete->execute()) {
+                    throw new Exception("Erro ao deletar cliente: " . $stmt_delete->error);
+                }
+
+                $conexao->commit();
+
+                $_SESSION['vendedor_id'] = $id_vendedor;
+                unset($_SESSION['usuario_id']);
+                $_SESSION['nome_usuario'] = $nome;
+                $_SESSION['tipo_usuario'] = 'vendedor';
+
+                $sucesso = "Parabéns! Você agora é um vendedor! Redirecionando para o seu painel...";
+                echo "<script>setTimeout(function(){ window.location.href = 'vendedor.php'; }, 3000);</script>";
+
+            } else {
+                throw new Exception("Erro ao criar conta de vendedor: " . $stmt_vendedor->error);
             }
+        } catch (Exception $e) {
+            $conexao->rollback();
+            $erro = $e->getMessage();
         }
     }
 }
@@ -453,8 +403,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['virar_vendedor'])) {
           Alcance novos clientes, ganhe dinheiro vendendo produtos que promovem a sustentabilidade e faça parte de uma comunidade que valoriza o futuro do nosso planeta.
         </p>
         <div class="cta-convite-vendedor animate-on-scroll delay-400ms">
-             <button class="btn btn-primary btn-large" id="mostrar-form-btn" type="button">Quero ser vendedor</button>
+             <form method="post">
+                <button class="btn btn-primary btn-large" id="mostrar-form-btn" type="submit" name="virar_vendedor">Quero ser vendedor</button>
+             </form>
         </div>
+        <?php if ($erro): ?>
+            <div class="msg-feedback msg-erro"><?= htmlspecialchars($erro) ?></div>
+        <?php endif; ?>
+        <?php if ($sucesso): ?>
+            <div class="msg-feedback msg-sucesso"><?= htmlspecialchars($sucesso) ?></div>
+        <?php endif; ?>
       </div>
       <a href="#beneficios" class="scroll-down-indicator" aria-label="Ver Benefícios">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="40px" height="40px"><path d="M11.9999 13.1714L16.9497 8.22168L18.3639 9.63589L11.9999 15.9999L5.63599 9.63589L7.0502 8.22168L11.9999 13.1714Z"></path></svg>
@@ -493,46 +451,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['virar_vendedor'])) {
       </div>
     </section>
     
-    <section id="form-vendedor-container" class="form-vendedor-container">
-      <div class="container">
-        <div class="form-vendedor-wrapper">
-          <h2>Complete seu Cadastro de Vendedor</h2>
-          <?php if ($erro): ?>
-            <div class="msg-feedback msg-erro"><?= htmlspecialchars($erro) ?></div>
-          <?php endif; ?>
-          <?php if ($sucesso): ?>
-            <div class="msg-feedback msg-sucesso"><?= htmlspecialchars($sucesso) ?></div>
-          <?php endif; ?>
-
-          <?php if (empty($sucesso)): ?>
-          <form class="form-vendedor" method="post" enctype="multipart/form-data" autocomplete="off">
-            <label for="nome">Nome completo</label>
-            <input type="text" id="nome" value="<?= htmlspecialchars($cliente['nome']) ?>" readonly>
-            
-            <label for="email">E-mail</label>
-            <input type="email" id="email" value="<?= htmlspecialchars($cliente['email']) ?>" readonly>
-            
-            <label for="cpf">CPF</label>
-            <input type="text" id="cpf" value="<?= htmlspecialchars($cliente['cpf']) ?>" readonly>
-            
-            <label for="telefone">Telefone</label>
-            <input type="text" id="telefone" value="<?= htmlspecialchars($cliente['telefone']) ?>" readonly>
-            
-            <label for="foto_usuario">Uma foto sua (para perfil)</label>
-            <input type="file" name="foto_usuario" id="foto_usuario" accept="image/jpeg, image/png, image/webp" required>
-            
-            <label for="foto_rg_frente">Foto do RG (frente)</label>
-            <input type="file" name="foto_rg_frente" id="foto_rg_frente" accept="image/jpeg, image/png, image/webp" required>
-            
-            <label for="foto_rg_verso">Foto do RG (verso)</label>
-            <input type="file" name="foto_rg_verso" id="foto_rg_verso" accept="image/jpeg, image/png, image/webp" required>
-            
-            <button type="submit" class="btn btn-primary" name="virar_vendedor">Cadastrar como Vendedor</button>
-          </form>
-          <?php endif; ?>
-        </div>
-      </div>
-    </section>
   </main>
 
   <footer class="site-footer-bottom">
@@ -582,47 +500,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['virar_vendedor'])) {
 
     animatedElements.forEach(el => observer.observe(el));
 
-    const mostrarFormBtn = document.getElementById('mostrar-form-btn');
-    const formContainer = document.getElementById('form-vendedor-container');
-
-    if (mostrarFormBtn && formContainer) {
-        mostrarFormBtn.onclick = function() {
-            this.style.transition = 'transform 0.4s ease, opacity 0.4s ease';
-            this.style.transform = 'translateY(-20px) scale(0.95)';
-            this.style.opacity = '0';
-            
-            setTimeout(() => {
-                if(this.style) this.style.display = 'none'; 
-                formContainer.classList.add('show');
-                formContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }, 400); 
-        };
-    }
-    
     <?php if (!empty($sucesso) && empty($erro)): ?>
     // Se houve sucesso e não há erro, e o botão de mostrar formulário existe, esconda-o.
     window.addEventListener('DOMContentLoaded', () => {
+        const mostrarFormBtn = document.getElementById('mostrar-form-btn');
         if (mostrarFormBtn) {
             mostrarFormBtn.style.display = 'none';
-        }
-        if (formContainer) {
-            // Garante que o container do formulário seja exibido para mostrar a mensagem de sucesso.
-            // Isso pode ser redundante se o PHP já não renderiza o form, mas garante visibilidade da msg.
-             if (!formContainer.classList.contains('show')) {
-                formContainer.classList.add('show'); // Mostra para a mensagem de sucesso ser visível
-             }
-             const feedbackMessage = formContainer.querySelector('.msg-feedback.msg-sucesso');
-             if (feedbackMessage) {
-                feedbackMessage.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
-             }
         }
     });
     <?php elseif (!empty($erro)): ?>
      window.addEventListener('DOMContentLoaded', () => {
         // Se há erro, o formulário já deve estar visível pelo clique ou por padrão (se não escondido por JS)
         // Apenas garante que o container do formulário esteja visível para a mensagem de erro
+        const formContainer = document.getElementById('form-vendedor-container');
         if (formContainer && !formContainer.classList.contains('show')) {
-            if (mostrarFormBtn) mostrarFormBtn.style.display = 'none'; // Esconde o botão se ainda estiver lá
             formContainer.classList.add('show');
         }
         const feedbackMessage = document.querySelector('.msg-feedback.msg-erro');

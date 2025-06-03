@@ -609,7 +609,7 @@ if (isset($_SESSION['usuario_id'])) {
         <div class="valor-total">Total: <span style="color:#1f804e;">R$ <?= number_format($total,2,',','.') ?></span></div>
         <?php if ($is_assinatura): ?>
           <div class="produto-unico-box">
-            <img src="img/logo2.png" class="produto-unico-img" alt="Assinatura">
+            <img src="img/rs.png" class="produto-unico-img" alt="Assinatura">
             <div class="produto-unico-info">
               <span class="produto-unico-nome">Assinatura Premium</span>
               <div style="color:#145c36;font-weight:bold;">R$ <?= number_format($valor_assinatura,2,',','.') ?>/mês</div>
