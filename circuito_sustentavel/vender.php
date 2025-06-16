@@ -35,6 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['virar_vendedor'])) {
     $cpf = $cliente['cpf'];
     $telefone = $cliente['telefone'];
     $senha = $cliente['senha']; 
+    $premium = isset($cliente['premium']) ? (int)$cliente['premium'] : 0; // NOVO: pega premium do cliente
 
     $sql_verifica = "SELECT id_vendedor FROM Vendedor WHERE email = ?";
     $stmt_check = $conexao->prepare($sql_verifica);
@@ -47,9 +48,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['virar_vendedor'])) {
     } else {
         $conexao->begin_transaction();
         try {
-            $sql_insert_vendedor = "INSERT INTO Vendedor (nome, email, senha, cpf, telefone) VALUES (?, ?, ?, ?, ?)";
+            // ALTERADO: inclui premium na inserção
+            $sql_insert_vendedor = "INSERT INTO Vendedor (nome, email, senha, cpf, telefone, premium) VALUES (?, ?, ?, ?, ?, ?)";
             $stmt_vendedor = $conexao->prepare($sql_insert_vendedor);
-            $stmt_vendedor->bind_param("sssss", $nome, $email, $senha, $cpf, $telefone);
+            $stmt_vendedor->bind_param("sssssi", $nome, $email, $senha, $cpf, $telefone, $premium);
 
             if ($stmt_vendedor->execute()) {
                 $id_vendedor = $conexao->insert_id;
