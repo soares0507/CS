@@ -50,11 +50,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $carne = $_POST['carne'] ?? '0';
                     $reciclagem = $_POST['reciclagem'] ?? 'nunca';
 
-                    $sql_cotidiano = "INSERT INTO Cotidiano (id_cliente, carro, onibus, luz, gas, carne, reciclagem) 
-                                      VALUES (?, ?, ?, ?, ?, ?, ?)";
+                   
+                    $fatores = [
+                        'carro' => [
+                            'nenhum' => 0,
+                            '15_30' => 3.47,
+                            '30_60' => 7.85,
+                            'mais60' => 12.0,
+                        ],
+                        'onibus' => [
+                            'nenhum' => 0.2,
+                            '15_30' => 0.89,
+                            '30_60' => 1.6,
+                            'mais60' => 2.5,
+                        ],
+                        'luz' => [
+                            'ate100' => 0.36,
+                            '100_300' => 0.91,
+                            '300_500' => 1.46,
+                            'mais500' => 2.2,
+                        ],
+                        'gas' => [
+                            '2meses' => 0.39,
+                            '3_4meses' => 0.26,
+                            '5_6meses' => 0.13,
+                            'mais6' => 0.07,
+                        ],
+                        'carne' => [
+                            '0' => 0,
+                            '1_2' => 3.78,
+                            '3_5' => 7.83,
+                            'todos' => 13.5,
+                        ],
+                        'reciclagem' => [
+                            'sempre' => -0.3,
+                            'as_vezes' => -0.1,
+                            'raro' => 0,
+                            'nunca' => 0.2,
+                        ]
+                    ];
+
+                    $total = 0;
+                    $total += $fatores['carro'][$carro] ?? 0;
+                    $total += $fatores['onibus'][$onibus] ?? 0;
+                    $total += $fatores['luz'][$luz] ?? 0;
+                    $total += $fatores['gas'][$gas] ?? 0;
+                    $total += $fatores['carne'][$carne] ?? 0;
+                    $total += $fatores['reciclagem'][$reciclagem] ?? 0;
+
+                    // Classificação
+                    if ($total <= 5) {
+                        $estado = "saudavel";
+                    } elseif ($total <= 10) {
+                        $estado = "moderado";
+                    } else {
+                        $estado = "critico";
+                    }
+                   
+
+                    $sql_cotidiano = "INSERT INTO Cotidiano (id_cliente, carro, onibus, luz, gas, carne, reciclagem, estado) 
+                                      VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
                     $stmt_cotidiano = $conexao->prepare($sql_cotidiano);
                     if ($stmt_cotidiano) {
-                        $stmt_cotidiano->bind_param("issssss", $id_cliente, $carro, $onibus, $luz, $gas, $carne, $reciclagem);
+                        $stmt_cotidiano->bind_param("isssssss", $id_cliente, $carro, $onibus, $luz, $gas, $carne, $reciclagem, $estado);
                         
                         if ($stmt_cotidiano->execute()) {
                             $_SESSION['usuario_id'] = $id_cliente; 

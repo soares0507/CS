@@ -43,7 +43,7 @@ if (isset($_SESSION['usuario_id'])) {
 }
 
 // Lógica do carrinho para o header (simplificada de loja.php)
-$imagem_carrinho_header = 'img/carrinho_sem.png'; 
+$imagem_carrinho_header = 'img/carrinho_sem.png';
 if ($usuario_logado) {
     // ... (lógica para verificar itens no carrinho e definir $imagem_carrinho_header) ...
     // Por simplicidade, vou assumir que pode estar vazio ou cheio baseado em alguma lógica
@@ -91,7 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['conteudo_postagem']))
 
 // --- NOVO: Buscar postagens do banco de dados ---
 $posts_comunidade = [];
-$sql = "SELECT 
+$sql = "SELECT
             p.id_postagem, p.conteudo, p.data, p.imagem,
             p.id_cliente, p.id_vendedor,
             c.nome AS nome_cliente, v.nome AS nome_vendedor,
@@ -136,6 +136,8 @@ if ($res) {
         }
         $posts_comunidade[] = [
             'id' => $row['id_postagem'],
+            'id_cliente' => $row['id_cliente'],     // Adicionado para verificação de autoria
+            'id_vendedor' => $row['id_vendedor'],   // Adicionado para verificação de autoria
             'autor_nome' => $autor_nome,
             'autor_foto' => $autor_foto,
             'tempo_postagem' => $tempo_postagem,
@@ -217,7 +219,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['acao'] === 'listar_comentarios') {
     $id_post = intval($_POST['id_post']);
     $comentarios = [];
-    $sql = "SELECT c.conteudo, c.data, c.id_cliente, c.id_vendedor, 
+    $sql = "SELECT c.conteudo, c.data, c.id_cliente, c.id_vendedor,
                    cli.nome AS nome_cliente, v.nome AS nome_vendedor
             FROM Comentario c
             LEFT JOIN Cliente cli ON c.id_cliente = cli.id_cliente
@@ -240,6 +242,73 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
     echo json_encode(['comentarios' => $comentarios]);
     exit;
 }
+
+// --- AJAX: Excluir Post ---
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['acao'] === 'excluir_post') {
+    $id_post = intval($_POST['id_post']);
+    if ($usuario_logado && $id_post) {
+        $id_cliente = isset($_SESSION['usuario_id']) ? $_SESSION['usuario_id'] : null;
+        $id_vendedor = isset($_SESSION['vendedor_id']) ? $_SESSION['vendedor_id'] : null;
+
+        // Determina a coluna de verificação (id_cliente ou id_vendedor)
+        $user_id_column = $id_cliente ? "id_cliente" : "id_vendedor";
+        $user_id = $id_cliente ?: $id_vendedor;
+
+        // Primeiro, exclui a imagem associada, se houver
+        $sql_img = "SELECT imagem FROM Postagem WHERE id_postagem = ? AND $user_id_column = ?";
+        $stmt_img = $conexao->prepare($sql_img);
+        $stmt_img->bind_param("ii", $id_post, $user_id);
+        $stmt_img->execute();
+        $result_img = $stmt_img->get_result();
+        if ($img_data = $result_img->fetch_assoc()) {
+            if ($img_data['imagem'] && file_exists($img_data['imagem'])) {
+                unlink($img_data['imagem']); // Deleta o arquivo da imagem
+            }
+        }
+        $stmt_img->close();
+
+        // Exclui primeiro curtidas e comentários associados
+        $conexao->query("DELETE FROM Curtida WHERE id_postagem = $id_post");
+        $conexao->query("DELETE FROM Comentario WHERE id_postagem = $id_post");
+
+        // Agora exclui o post
+        $sql_del = "DELETE FROM Postagem WHERE id_postagem = ? AND $user_id_column = ?";
+        $stmt_del = $conexao->prepare($sql_del);
+        $stmt_del->bind_param("ii", $id_post, $user_id);
+        if ($stmt_del->execute()) {
+            echo json_encode(['success' => true]);
+        } else {
+            echo json_encode(['success' => false, 'error' => 'Falha ao excluir.']);
+        }
+        $stmt_del->close();
+        exit;
+    }
+}
+
+// --- AJAX: Editar Post ---
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['acao'] === 'editar_post') {
+    $id_post = intval($_POST['id_post']);
+    $conteudo = trim($_POST['conteudo']);
+
+    if ($usuario_logado && $id_post && $conteudo !== '') {
+        $id_cliente = isset($_SESSION['usuario_id']) ? $_SESSION['usuario_id'] : null;
+        $id_vendedor = isset($_SESSION['vendedor_id']) ? $_SESSION['vendedor_id'] : null;
+
+        $user_id_column = $id_cliente ? "id_cliente" : "id_vendedor";
+        $user_id = $id_cliente ?: $id_vendedor;
+
+        $sql_upd = "UPDATE Postagem SET conteudo = ? WHERE id_postagem = ? AND $user_id_column = ?";
+        $stmt_upd = $conexao->prepare($sql_upd);
+        $stmt_upd->bind_param("sii", $conteudo, $id_post, $user_id);
+        if ($stmt_upd->execute()) {
+            echo json_encode(['success' => true, 'novo_conteudo' => nl2br(htmlspecialchars($conteudo))]);
+        } else {
+            echo json_encode(['success' => false, 'error' => 'Falha ao salvar.']);
+        }
+        $stmt_upd->close();
+        exit;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -254,7 +323,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
         --verde: #28a060;
         --verde-escuro: #1e7c4b;
         --verde-claro-fundo: #f0f9f4;
-        --cinza-claro: #f4f6f8; 
+        --cinza-claro: #f4f6f8;
         --cinza-medio: #e9ecef; /* Para bordas e fundos sutis */
         --cinza-texto: #5f6c7b;
         --cinza-escuro: #2c3e50;
@@ -282,7 +351,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
     }
-    
+
     main.cv-main-content {
         padding-top: 80px; /* Espaço para o header fixo */
         display: flex;
@@ -296,7 +365,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
         gap: 25px;
         padding: 25px 15px; /* Padding lateral para o container */
     }
-    
+
     /* Header Modernizado (Copiado e Adaptado de loja.php) */
     .site-header {
         position: fixed; top: 0; left: 0; width: 100%; z-index: 1000;
@@ -341,7 +410,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
     .search-bar-comunidade .search-submit-btn {
         position: absolute; right: 3px; top: 3px; bottom: 3px;
         width: 38px; background: var(--verde); border: none; cursor: pointer;
-        border-top-right-radius: var(--border-radius-lg); 
+        border-top-right-radius: var(--border-radius-lg);
         border-bottom-right-radius: var(--border-radius-lg);
         display: flex; align-items:center; justify-content:center;
         transition: background-color var(--transition-std);
@@ -670,8 +739,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
                         Meu Feed
                     </a></li>
                 </ul>
-               
-                 
+
+
             </nav>
         </aside>
 
@@ -685,7 +754,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
                     <textarea name="conteudo_postagem" placeholder="No que você está pensando, <?= $nome_usuario_logado ?>?" required></textarea>
                     <div class="create-post-actions">
                         <div class="action-buttons">
-                            <!-- Botão de imagem ativado -->
                             <label style="cursor:pointer;">
                                 <input type="file" name="imagem_postagem" accept="image/*" style="display:none" id="input-imagem-postagem" onchange="previewImagemPostagem(event)">
                                 <button type="button" aria-label="Adicionar Foto" id="btn-add-img" style="opacity:1;">
@@ -701,9 +769,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
             <?php endif; ?>
             <div class="comentario-autor">
                 <div class="cv-post-feed">
-                    <?php 
+                    <?php
                     $post_delay_animacao = 0;
-                    foreach ($posts_comunidade as $post): 
+                    foreach ($posts_comunidade as $post):
                         $post_anim_delay_class = 'delay-0-' . (($post_delay_animacao % 2) * 2 + 1) . 's'; // 0.1s, 0.3s
                     ?>
                     <article class="cv-post-card animate-on-scroll <?= $post_anim_delay_class ?>" data-post-id="<?= $post['id'] ?>">
@@ -715,11 +783,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
                             <h5><?= htmlspecialchars($post['autor_nome']) ?></h5>
                             <span class="post-time"><?= htmlspecialchars($post['tempo_postagem']) ?></span>
                         </div>
-                        <button aria-label="Opções do post" style="margin-left:auto; background:none; border:none; cursor:pointer; color:var(--cinza-texto);">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
-                                <path d="M9.5 13a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/>
-                            </svg>
-                        </button>
+                        <div class="post-options-container" style="margin-left:auto; position:relative;">
+                            <?php
+                            // Verifica se o usuário logado é o autor do post
+                            $is_author = false;
+                            if (isset($_SESSION['usuario_id']) && $_SESSION['usuario_id'] == $post['id_cliente']) {
+                                $is_author = true;
+                            } elseif (isset($_SESSION['vendedor_id']) && $_SESSION['vendedor_id'] == $post['id_vendedor']) {
+                                $is_author = true;
+                            }
+
+                            if ($is_author):
+                            ?>
+                            <button aria-label="Opções do post" class="post-options-btn" style="background:none; border:none; cursor:pointer; color:var(--cinza-texto);">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                                    <path d="M9.5 13a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/>
+                                </svg>
+                            </button>
+                            <div class="post-options-menu" style="display:none; position:absolute; right:0; top:25px; background-color:var(--branco); border-radius:var(--border-radius-md); box-shadow:var(--sombra-card); z-index:10; min-width:120px; padding: 8px 0;">
+                                <a href="#" class="delete-post-btn" style="display:block; padding:8px 15px; color:red; text-decoration:none; font-size:0.9em;">Excluir Post</a>
+                            </div>
+                            <?php endif; ?>
+                        </div>
                     </div>
                     <div class="post-content">
                         <p><?= nl2br(htmlspecialchars($post['conteudo_texto'])) ?></p>
@@ -752,9 +837,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
                         </form>
                     </div>
                 </article>
-                <?php 
+                <?php
                     $post_delay_animacao++;
-                endforeach; 
+                endforeach;
                 if (empty($posts_comunidade)) {
                     echo '<div style="text-align:center; color:#888; margin-top:40px;">Nenhuma postagem ainda. Seja o primeiro a postar!</div>';
                 }
@@ -789,6 +874,90 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
   </footer>
 
   <script>
+    document.addEventListener('DOMContentLoaded', function() {
+
+        // Gerenciar menu de opções do post
+        document.querySelectorAll('.post-options-btn').forEach(button => {
+            button.addEventListener('click', function(event) {
+                event.stopPropagation();
+                // Fecha outros menus abertos
+                document.querySelectorAll('.post-options-menu').forEach(menu => menu.style.display = 'none');
+                // Abre o menu clicado
+                const menu = this.nextElementSibling;
+                menu.style.display = 'block';
+            });
+        });
+
+        // Fechar o menu se clicar em qualquer outro lugar da página
+        window.addEventListener('click', function() {
+            document.querySelectorAll('.post-options-menu').forEach(menu => {
+                if (menu.style.display === 'block') {
+                    menu.style.display = 'none';
+                }
+            });
+        });
+
+        // Ação para o botão de excluir
+        document.querySelectorAll('.delete-post-btn').forEach(button => {
+            button.addEventListener('click', function(event) {
+                event.preventDefault();
+                const postCard = this.closest('.cv-post-card');
+                const postId = postCard.getAttribute('data-post-id');
+
+                if (confirm('Tem certeza que deseja excluir este post? Esta ação não pode ser desfeita.')) {
+                    fetch('rs.php', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                        body: `acao=excluir_post&id_post=${postId}`
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            postCard.style.transition = 'opacity 0.5s ease';
+                            postCard.style.opacity = '0';
+                            setTimeout(() => postCard.remove(), 500);
+                        } else {
+                            alert('Erro ao excluir o post.');
+                        }
+                    });
+                }
+            });
+        });
+
+        // Botão "Comentar" mostra/esconde o formulário de comentário
+        document.querySelectorAll('.btn-comentar').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const postCard = btn.closest('.cv-post-card');
+                const area = postCard.querySelector('.comentar-area');
+                area.style.display = area.style.display === 'none' ? 'block' : 'none';
+            });
+        });
+
+        // Envio do comentário via AJAX
+        document.querySelectorAll('.form-comentario').forEach(form => {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const postCard = form.closest('.cv-post-card');
+                const postId = postCard.getAttribute('data-post-id');
+                const comentario = form.comentario.value;
+                fetch('rs.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: 'acao=comentar&id_post=' + encodeURIComponent(postId) + '&comentario=' + encodeURIComponent(comentario)
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.reload) {
+                        window.location.reload();
+                    }
+                });
+            });
+        });
+
+        // Remover ação para o botão de editar
+    });
+
+
     // Header Scroll Effect
     const header = document.querySelector('.site-header');
     if (header) {
@@ -876,33 +1045,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
         });
     });
 
-    // Comentar via AJAX
-    document.querySelectorAll('.btn-comentar').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const postCard = btn.closest('.cv-post-card');
-            const area = postCard.querySelector('.comentar-area');
-            area.style.display = area.style.display === 'none' ? 'block' : 'none';
-        });
-    });
-    document.querySelectorAll('.form-comentario').forEach(form => {
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const postCard = form.closest('.cv-post-card');
-            const postId = postCard.getAttribute('data-post-id');
-            const comentario = form.comentario.value;
-            fetch('rs.php', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: 'acao=comentar&id_post=' + encodeURIComponent(postId) + '&comentario=' + encodeURIComponent(comentario)
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.reload) {
-                    window.location.reload();
-                }
-            });
-        });
-    });
+   
 
     // Comentários inline com transição
     document.querySelectorAll('.cv-post-card').forEach(card => {

@@ -20,12 +20,9 @@ if (!$produto) {
     exit;
 }
 
-$imagens = [];
+$imagem = '';
 if (!empty($produto['imagens'])) {
-    $imagens = json_decode($produto['imagens'], true);
-    if (!is_array($imagens)) {
-        $imagens = explode(',', $produto['imagens']);
-    }
+    $imagem = $produto['imagens'];
 }
 
 $erro = '';
@@ -43,35 +40,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $estoque = $_POST['estoque'] ?? '';
     $descricao = $_POST['descricao'] ?? '';
 
-    $imagens_atualizadas = $imagens;
-    for ($i = 0; $i < 6; $i++) {
-        if (isset($_FILES['imagens']['name'][$i]) && $_FILES['imagens']['name'][$i]) {
-            if ($_FILES['imagens']['error'][$i] === UPLOAD_ERR_OK) {
-                $caminho_temporario = $_FILES['imagens']['tmp_name'][$i];
-                $extensao = strtolower(pathinfo($_FILES['imagens']['name'][$i], PATHINFO_EXTENSION));
-                $permitidas = ['jpg','jpeg','png','gif','webp'];
-                if (!in_array($extensao, $permitidas)) continue;
-                $nome_arquivo = uniqid('produto_', true) . '.' . $extensao;
-                $destino = $pasta_upload . $nome_arquivo;
-                if (move_uploaded_file($caminho_temporario, $destino)) {
-                    $imagens_atualizadas[$i] = $url_upload . $nome_arquivo;
-                }
+    $imagem_atualizada = $imagem;
+    if (isset($_FILES['imagens']['error'][0]) && $_FILES['imagens']['error'][0] === UPLOAD_ERR_OK) {
+        $img_tmp = $_FILES['imagens']['tmp_name'][0];
+        $extensao = strtolower(pathinfo($_FILES['imagens']['name'][0], PATHINFO_EXTENSION));
+        $permitidas = ['jpg','jpeg','png','gif','webp'];
+        if (in_array($extensao, $permitidas)) {
+            $img_name = uniqid('produto_', true) . '.' . $extensao;
+            $img_dest = $pasta_upload . $img_name;
+            if (move_uploaded_file($img_tmp, $img_dest)) {
+                $imagem_atualizada = $url_upload . $img_name;
             }
-        } elseif (isset($_POST["imagem_existente_$i"])) {
-            $imagens_atualizadas[$i] = $_POST["imagem_existente_$i"];
         }
+    } elseif (isset($_POST["imagem_existente_0"])) {
+        $imagem_atualizada = $_POST["imagem_existente_0"];
     }
-    $imagens_atualizadas = array_slice($imagens_atualizadas, 0, 6);
-    $imagens_json = json_encode($imagens_atualizadas);
 
-    $sql = "UPDATE Produto SET nome='$nome', descricao='$descricao', preco='$preco', estoque='$estoque', imagens='$imagens_json' WHERE id_produto='$id_produto' AND id_vendedor='$id_vendedor'";
+    $sql = "UPDATE Produto SET nome='$nome', descricao='$descricao', preco='$preco', estoque='$estoque', imagens='$imagem_atualizada' WHERE id_produto='$id_produto' AND id_vendedor='$id_vendedor'";
     if ($conexao->query($sql)) {
         $sucesso = "Produto atualizado com sucesso!";
         $produto['nome'] = $nome;
         $produto['descricao'] = $descricao;
         $produto['preco'] = $preco;
         $produto['estoque'] = $estoque;
-        $imagens = $imagens_atualizadas;
+        $imagem = $imagem_atualizada;
     } else {
         $erro = "Erro ao atualizar produto!";
     }
@@ -220,7 +212,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <header>
     <div class="logo">
       <a href="loja.php"><img src="img/logo2.png" alt="Logo"></a>
-      <span class="header-title">Painel do Vendedor</span>
+    </div>
+    <div style="margin-left:78%;">
+      <button onclick="window.location.href='ver_produtos.php'" style="background: none; border: none; font-size: 2rem; color: #1f804e; cursor: pointer; font-weight: bold;">&#10005;</button>
     </div>
   </header>
   <main>
@@ -247,24 +241,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <label>Imagem:</label>
         <div class="imagens-preview">
-          <?php if (!empty($imagens[0])): ?>
-            <img src="<?= htmlspecialchars($imagens[0]) ?>" alt="Imagem 1">
+          <?php if (!empty($imagem)): ?>
+            <img src="<?= htmlspecialchars($imagem) ?>" alt="Imagem 1" id="preview-img-produto">
           <?php else: ?>
-            <img src="img/sem-imagem.png" alt="Sem imagem">
+            <img src="img/sem-imagem.png" alt="Sem imagem" id="preview-img-produto">
           <?php endif; ?>
         </div>
         <label class="imagem-label" for="imagem0">Alterar Imagem:</label>
-        <input type="file" id="imagem0" name="imagens[]" accept="image/*">
-        <?php if (!empty($imagens[0])): ?>
-          <input type="hidden" name="imagem_existente_0" value="<?= htmlspecialchars($imagens[0]) ?>">
+        <input type="file" id="imagem0" name="imagens[]" accept="image/*" onchange="previewImagemProduto(event)">
+        <?php if (!empty($imagem)): ?>
+          <input type="hidden" name="imagem_existente_0" value="<?= htmlspecialchars($imagem) ?>">
         <?php endif; ?>
 
         <div class="botoes">
           <button type="submit" class="botao-acao">Salvar Alterações</button>
-          <button type="button" class="botao-acao" onclick="window.location.href='ver_produtos.php'">Voltar</button>
         </div>
       </form>
     </div>
   </main>
+  <script>
+    // Preview da imagem antes do upload (igual ao cadastrar_produto.php)
+    function previewImagemProduto(event) {
+      const input = event.target;
+      const preview = document.getElementById('preview-img-produto');
+      if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          preview.src = e.target.result;
+        }
+        reader.readAsDataURL(input.files[0]);
+      }
+    }
+  </script>
 </body>
 </html>

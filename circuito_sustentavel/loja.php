@@ -511,7 +511,7 @@ if(isset($_SESSION['vendedor_id'])) {
 
   <main>
     <div class="container-page">
-      <!-- Banner achatado ANUNCIO.png -->
+      
       <div style="width: 100%; margin: 20px auto; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(40,160,96,0.3);">
         <img src="img/ANUNCIO.png" alt="Anúncio" style="display: block; width: 100%; height: 260px; object-fit: cover;">
       </div>
@@ -539,15 +539,16 @@ if(isset($_SESSION['vendedor_id'])) {
             if ($res_prod && $res_prod->num_rows > 0):
               $delay_animacao = 0;
               while ($prod = $res_prod->fetch_assoc()):
-                // Corrigido: sempre tenta pegar a primeira imagem válida, seja array ou string
+                // Mostra a imagem corretamente, seja JSON, string simples ou separada por vírgula
                 $img_path = 'img/sem-imagem.png';
-                $imagens_json = $prod['imagens'];
+                $imagens_campo = $prod['imagens'];
                 $primeira_imagem = '';
 
-                if (!empty($imagens_json)) {
+                if (!empty($imagens_campo)) {
                     // Tenta decodificar como JSON
-                    $imagens_array = json_decode($imagens_json, true);
-                    if (is_array($imagens_array) && !empty($imagens_array)) {
+                    $imagens_array = json_decode($imagens_campo, true);
+                    if (is_array($imagens_array)) {
+                        // JSON array
                         foreach ($imagens_array as $img) {
                             $img = trim($img, " \t\n\r\0\x0B\"'/");
                             if ($img !== '') {
@@ -556,7 +557,8 @@ if(isset($_SESSION['vendedor_id'])) {
                             }
                         }
                     } else {
-                        // Fallback: string separada por vírgula
+                        // Não é JSON: pode ser string simples ou separada por vírgula
+                        $imagens_lista = explode(',', $imagens_campo);
                         foreach ($imagens_lista as $img) {
                             $img = trim($img, " \t\n\r\0\x0B\"'/");
                             if ($img !== '') {
@@ -574,7 +576,6 @@ if(isset($_SESSION['vendedor_id'])) {
                     ) {
                         $img_path = $primeira_imagem;
                     } else {
-                        
                         $img_path = 'uploads_produtos/' . $primeira_imagem;
                     }
                 }

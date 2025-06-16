@@ -105,6 +105,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_add_carrinho']))
     if ($res_prod && $res_prod->num_rows > 0) {
         $row_prod = $res_prod->fetch_assoc();
         $id_vendedor_produto = $row_prod['id_vendedor'];
+
+        // --- BLOQUEIA O VENDEDOR DE COMPRAR O PRÓPRIO PRODUTO ---
+        if ($is_vendedor && $id_vendedor_logado == $id_vendedor_produto) {
+            http_response_code(403);
+            exit;
+        }
+
         $id_carrinho = null;
 
         if (!$is_vendedor) {
@@ -216,6 +223,12 @@ if (!$res_produto_detalhe || $res_produto_detalhe->num_rows == 0) {
 }
 $produto = $res_produto_detalhe->fetch_assoc();
 $stmt_produto_detalhe->close();
+
+// --- BLOQUEIA O VENDEDOR DE COMPRAR O PRÓPRIO PRODUTO (FRONTEND) ---
+$bloqueia_vendedor_compra = false;
+if (isset($_SESSION['vendedor_id']) && $_SESSION['vendedor_id'] == $produto['id_vendedor']) {
+    $bloqueia_vendedor_compra = true;
+}
 
 $imagens = [];
 if (!empty($produto['imagens'])) {
@@ -501,6 +514,15 @@ $pergunta_para_responder = (isset($_SESSION['vendedor_id'], $_GET['responder']) 
     .btn-add-cart:hover {
         background-color: var(--amarelo-compra-hover);
     }
+    /* NOVO: Botão Comprar Agora verde */
+    .btn-comprar-agora {
+        background-color: var(--verde);
+        color: #fff;
+    }
+    .btn-comprar-agora:hover {
+        background-color: var(--verde-escuro);
+        color: #fff;
+    }
     #msg-carrinho {
         font-size: 0.9em;
         padding: 10px;
@@ -649,7 +671,7 @@ $pergunta_para_responder = (isset($_SESSION['vendedor_id'], $_GET['responder']) 
             </div>
         <?php endif; ?>
         <a href="rs.php" aria-label="C+ Moedas">
-            <img src="img/C+.png" alt="C+ Moedas" class="action-icon">
+            <img src="img/rs.png" alt="C+ Moedas" class="action-icon">
         </a>
         <a href="<?= htmlspecialchars($link_carrinho_header) ?>" aria-label="Carrinho de Compras">
             <img src="<?= htmlspecialchars($imagem_carrinho) ?>" alt="Carrinho" class="action-icon">
@@ -689,17 +711,21 @@ $pergunta_para_responder = (isset($_SESSION['vendedor_id'], $_GET['responder']) 
                 </div>
                 
                 <div class="buy-box">
-                    <!-- ALTERA O FORMULÁRIO PARA USAR O ID E NOMES ESPERADOS PELO JS ANTIGO -->
+                    <?php if ($bloqueia_vendedor_compra): ?>
+                        <div id="msg-carrinho" class="alert alert-danger" style="display:block;">
+                            Você não pode comprar seu próprio produto.
+                        </div>
+                    <?php endif; ?>
                     <form method="post" id="form-carrinho">
                         <input type="hidden" name="id_produto" value="<?= $id_produto ?>">
                         <label for="quantidade">Quantidade:</label>
                         <input type="number" class="form-control form-control-sm" style="width:80px; display:inline-block; margin-right:10px;" 
                                id="quantidade" name="quantidade" min="1" 
                                max="<?= $produto['estoque'] > 0 ? $produto['estoque'] : '1' ?>" value="1" required 
-                               <?= $produto['estoque'] == 0 ? 'disabled' : '' ?>>
+                               <?= $produto['estoque'] == 0 || $bloqueia_vendedor_compra ? 'disabled' : '' ?>>
                         <br><br>
-                        <button type="submit" class="btn btn-add-cart" name="add_carrinho" <?= $produto['estoque'] == 0 ? 'disabled' : '' ?>>Adicionar ao carrinho</button>
-                        <button type="submit" class="btn btn-primary" name="comprar" <?= $produto['estoque'] == 0 ? 'disabled' : '' ?>>Comprar Agora</button>
+                        <button type="submit" class="btn btn-add-cart" name="add_carrinho" <?= $produto['estoque'] == 0 || $bloqueia_vendedor_compra ? 'disabled' : '' ?>>Adicionar ao carrinho</button>
+                        <button type="submit" class="btn btn-comprar-agora" name="comprar" <?= $produto['estoque'] == 0 || $bloqueia_vendedor_compra ? 'disabled' : '' ?>>Comprar Agora</button>
                     </form>
                     <div id="msg-carrinho" style="display:none; margin-top:15px;" class="alert"></div>
                 </div>
@@ -917,6 +943,16 @@ $pergunta_para_responder = (isset($_SESSION['vendedor_id'], $_GET['responder']) 
     // SUBSTITUIR LÓGICA AJAX DO CARRINHO PELO SCRIPT ANTIGO
     document.getElementById('form-carrinho').addEventListener('submit', function(e) {
       var btn = document.activeElement;
+      // --- BLOQUEIA O VENDEDOR DE COMPRAR O PRÓPRIO PRODUTO (JS) ---
+      var bloqueiaVendedor = <?= $bloqueia_vendedor_compra ? 'true' : 'false' ?>;
+      if (bloqueiaVendedor) {
+        e.preventDefault();
+        var msg = document.getElementById('msg-carrinho');
+        msg.innerText = 'Você não pode comprar seu próprio produto.';
+        msg.style.display = 'block';
+        msg.className = 'alert alert-danger';
+        return;
+      }
       if (btn && btn.name === 'add_carrinho') {
         e.preventDefault();
         var formData = new FormData(this);
@@ -940,6 +976,15 @@ $pergunta_para_responder = (isset($_SESSION['vendedor_id'], $_GET['responder']) 
     // --- LÓGICA PARA "COMPRAR AGORA" (redireciona para pagamento.php) ---
     document.getElementById('form-carrinho').addEventListener('submit', function(e) {
       var btn = document.activeElement;
+      var bloqueiaVendedor = <?= $bloqueia_vendedor_compra ? 'true' : 'false' ?>;
+      if (bloqueiaVendedor) {
+        e.preventDefault();
+        var msg = document.getElementById('msg-carrinho');
+        msg.innerText = 'Você não pode comprar seu próprio produto.';
+        msg.style.display = 'block';
+        msg.className = 'alert alert-danger';
+        return;
+      }
       if (btn && btn.name === 'comprar') {
         e.preventDefault();
         var formData = new FormData(this);

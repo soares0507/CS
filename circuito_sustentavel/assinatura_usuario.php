@@ -417,14 +417,8 @@
             <h3>Suporte Rápido e Prioritário</h3>
             <p>Obtenha suporte ágil e especializado, com prioridade total.</p>
           </div>
-          <div class="beneficio animate-on-scroll delay-0-4s">
-            <h3>Dobro de Moedas</h3>
-            <p>Sua compra tera o dobro de moedas.</p>
-          </div>
-          <div class="beneficio animate-on-scroll">
-            <h3>Selo Exclusivo</h3>
-            <p>Selo exclusivo para assinantes na sua foto de perfil.</p>
-          </div>
+          
+        
           <div class="beneficio animate-on-scroll delay-0-2s">
             <h3>Dicas diarias</h3>
             <p>Dicas de como emitir menos carbono.</p>

@@ -62,8 +62,8 @@ $dica_do_dia = $dicas_carbono[array_rand($dicas_carbono)];
 
 $cupons_disponiveis = [
     ['codigo' => 'VERDE15', 'descricao' => '15% OFF em toda a loja.', 'validade' => '01/07/2025'],
-    ['codigo' => 'ECOCASA10', 'descricao' => '20% de desconto em produtos de até R$200.', 'validade' => '01/07/2025'],
-    ['codigo' => 'BEMVINDOSAOCS', 'descricao' => 'Menos R$30 na primeira compra', 'validade' => '01/07/2025'],
+    ['codigo' => 'ECOCASA10', 'descricao' => '20% OFF em toda a loja.', 'validade' => '01/07/2025'],
+    ['codigo' => 'BEMVINDOSAOCS', 'descricao' => 'R$30 OFF em toda a loja', 'validade' => '01/07/2025'],
 ];
 
 ?>

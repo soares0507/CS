@@ -9,8 +9,14 @@ if (!isset($_SESSION['vendedor_id'])) {
 }
 
 $id_vendedor = $_SESSION['vendedor_id'];
-$sql = "SELECT * FROM Vendedor WHERE id_vendedor = '$id_vendedor'";
-$resultado = $conexao->query($sql);
+
+// Usar prepared statements
+$sql = "SELECT * FROM Vendedor WHERE id_vendedor = ?";
+$stmt_vend = $conexao->prepare($sql);
+$stmt_vend->bind_param("i", $id_vendedor);
+$stmt_vend->execute();
+$resultado = $stmt_vend->get_result();
+
 if ($resultado->num_rows > 0) {
     $vendedor = $resultado->fetch_assoc();
 } else {
@@ -18,32 +24,28 @@ if ($resultado->num_rows > 0) {
     header('Location: login.php');
     exit;
 }
+$stmt_vend->close();
 
-
-$sql_endereco = "SELECT * FROM Endereco WHERE id_vendedor = '$id_vendedor'";
-$res_endereco = $conexao->query($sql_endereco);
+$sql_endereco = "SELECT * FROM Endereco WHERE id_vendedor = ?";
+$stmt_endereco = $conexao->prepare($sql_endereco);
+$stmt_endereco->bind_param("i", $id_vendedor);
+$stmt_endereco->execute();
+$res_endereco = $stmt_endereco->get_result();
 $tem_endereco = ($res_endereco && $res_endereco->num_rows > 0);
 $endereco = $tem_endereco ? $res_endereco->fetch_assoc() : null;
+$stmt_endereco->close();
 
-
-$erro_excluir = '';
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['excluir_conta'])) {
-    $senha = $_POST['senha_excluir'] ?? '';
-    $sql = "SELECT senha FROM Vendedor WHERE id_vendedor = '$id_vendedor'";
-    $res = $conexao->query($sql);
-    if ($res && $res->num_rows > 0) {
-        $row = $res->fetch_assoc();
-        if (password_verify($senha, $row['senha'])) {
-            $conexao->query("DELETE FROM Vendedor WHERE id_vendedor = '$id_vendedor'");
-            session_destroy();
-            header('Location: login.php');
-            exit;
-        } else {
-            $erro_excluir = "Senha incorreta!";
-        }
-    }
+$estado_vendedor = null;
+$sql_estado = "SELECT estado FROM Cotidiano WHERE id_vendedor = ? LIMIT 1";
+$stmt_estado = $conexao->prepare($sql_estado);
+$stmt_estado->bind_param("i", $id_vendedor);
+$stmt_estado->execute();
+$res_estado = $stmt_estado->get_result();
+if ($res_estado && $res_estado->num_rows > 0) {
+    $row_estado = $res_estado->fetch_assoc();
+    $estado_vendedor = $row_estado['estado'];
 }
-
+$stmt_estado->close();
 
 if (isset($_POST['logout'])) {
     session_destroy();
@@ -56,279 +58,213 @@ if (isset($_POST['logout'])) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Área do Vendedor</title>
-  
-  <style>* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  font-family: sans-serif;
-  background-color: #d4d3c8;
-}
-
-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: white;
-  padding: 20px;
-}
-
-.logo {
-  font-size: 24px;
-}
-
-.logo .verde {
-  color: green;
-}
-
-.logo .sub {
-  font-size: 12px;
-  margin-top: 4px;
-}
-
-.search-container {
-      margin: 1rem auto 0 auto;
-      display: flex;
-      justify-content: center;
-      position: relative;
+  <title>Painel do Vendedor - Circuito Sustentável</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
+  <style>
+    :root {
+        --verde: #28a060;
+        --verde-escuro: #1e7c4b;
+        --verde-claro-fundo: #f0f9f4;
+        --cinza-claro: #f4f6f8;
+        --cinza-texto: #5f6c7b;
+        --cinza-escuro: #2c3e50;
+        --branco: #ffffff;
+        --sombra-padrao: 0 8px 25px rgba(0,0,0, 0.07);
+        --sombra-hover-forte: 0 10px 30px rgba(40, 160, 96, 0.15);
+        --border-radius-md: 8px;
+        --border-radius-lg: 16px;
+        --transition-std: 0.3s;
+        --font-principal: 'Poppins', sans-serif;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+        font-family: var(--font-principal);
+        line-height: 1.6;
+        color: var(--cinza-texto);
+        background-color: var(--cinza-claro);
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+    main {
+        flex-grow: 1;
+        padding-top: 100px;
+    }
+    .container-page {
+        width: 90%;
+        max-width: 1200px;
+        margin: 20px auto;
     }
 
-    .search-container input {
-      width: 140%;
-      padding: 10px 400px 10px 20px;
-      border: none;
-      background: #f3f2e7;
-      border-radius: 20px;
-      font-size: 1rem;
-      margin-left:-40px;
+    /* Header e Footer */
+    .site-header {
+        position: fixed; top: 0; left: 0; width: 100%; z-index: 1000;
+        padding: 15px 0; background-color: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+        transition: all var(--transition-std); border-bottom: 1px solid transparent;
+    }
+    .site-header.scrolled {
+        background-color: var(--branco); box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+        padding: 12px 0; border-bottom: 1px solid var(--cinza-claro);
+    }
+    .header-container {
+        width: 90%; max-width: 1200px; margin: 0 auto;
+        display: flex; align-items: center; justify-content: space-between;
+    }
+    .site-header .logo { height: 45px; transition: transform var(--transition-std); }
+    .site-header .logo:hover { transform: scale(1.05); }
+    .header-actions { display: flex; align-items: center; gap: 15px; }
+    .header-actions .user-info-header {
+        font-size: 0.9em; color: var(--cinza-escuro); font-weight: 500;
+        display: flex; align-items: center; gap: 8px;
+    }
+    .header-actions .user-info-header img {
+        width: 32px; height: 32px; border-radius: 50%; object-fit: cover;
+    }
+    .btn {
+        display: inline-block; padding: 8px 18px; font-weight: 600;
+        text-decoration: none; border-radius: var(--border-radius-md);
+        transition: all var(--transition-std); cursor: pointer;
+        border: 2px solid transparent; font-size: 0.9em;
+    }
+    .btn-logout {
+        background-color: var(--verde-claro-fundo); color: var(--verde-escuro);
+        border: 1px solid var(--verde);
+    }
+    .btn-logout:hover { background-color: var(--verde); color: var(--branco); }
+
+    /* Dashboard Layout */
+    .dashboard-layout {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        gap: 30px;
+        align-items: flex-start;
+    }
+    .dashboard-sidebar, .dashboard-main {
+        opacity: 0;
+        transform: translateY(20px);
+        animation: fadeInUp 0.6s ease-out forwards;
+    }
+    @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
+
+    /* Sidebar */
+    .dashboard-sidebar .profile-card {
+        background-color: var(--branco);
+        padding: 25px;
+        border-radius: var(--border-radius-lg);
+        text-align: center;
+        box-shadow: var(--sombra-padrao);
+        margin-bottom: 20px;
+    }
+    .profile-card .avatar {
+        width: 100px; height: 100px;
+        border-radius: 50%;
+        object-fit: cover;
+        margin: 0 auto 15px auto;
+        border: 4px solid var(--verde-claro-fundo);
+    }
+    .profile-card h2 { font-size: 1.4em; color: var(--cinza-escuro); font-weight: 600; }
+    .profile-card p { font-size: 0.9em; margin-bottom: 15px; }
+    .estado-badge {
+        display: inline-flex; align-items: center; gap: 6px;
+        font-size: 0.9em; font-weight: 600;
+        padding: 5px 12px; border-radius: 20px;
+        margin-top: 5px; border: 1px solid;
+    }
+    .estado-badge.saudavel { color: #1e7d36; background: #e6f9ec; border-color: #a3d9b8; }
+    .estado-badge.moderado { color: #b36b00; background: #fff7e0; border-color: #ffdda1; }
+    .estado-badge.critico { color: #b91c1c; background: #ffeaea; border-color: #f7c5c5; }
+    
+    .sidebar-nav {
+        background-color: var(--branco);
+        padding: 15px;
+        border-radius: var(--border-radius-lg);
+        box-shadow: var(--sombra-padrao);
+    }
+    .sidebar-nav ul { list-style: none; }
+    .sidebar-nav ul li a {
+        display: flex; align-items: center; gap: 12px;
+        padding: 12px; text-decoration: none;
+        color: var(--cinza-texto); font-weight: 500; font-size: 0.95em;
+        border-radius: var(--border-radius-md);
+        transition: all var(--transition-fast);
+    }
+    .sidebar-nav ul li a svg { width: 20px; height: 20px; }
+    .sidebar-nav ul li a:hover, .sidebar-nav ul li a.active {
+        background-color: var(--verde-claro-fundo);
+        color: var(--verde);
     }
 
-    .search-container img.lupa {
-      position: absolute;
-      right: 3%;
-      top: 50%;
-      transform: translateY(-50%);
-      height: 20px;
+    /* Conteúdo Principal */
+    .dashboard-main .welcome-message {
+        background-color: var(--branco);
+        padding: 25px 30px;
+        border-radius: var(--border-radius-lg);
+        margin-bottom: 20px;
+        box-shadow: var(--sombra-padrao);
     }
+    .welcome-message h1 { font-size: 1.8em; color: var(--cinza-escuro); font-weight: 600; }
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+    }
+    .info-card {
+        background-color: var(--branco);
+        padding: 25px;
+        border-radius: var(--border-radius-lg);
+        box-shadow: var(--sombra-padrao);
+    }
+    .info-card h3 {
+        font-size: 1.2em; color: var(--verde-escuro);
+        margin-bottom: 15px; padding-bottom: 10px;
+        border-bottom: 1px solid var(--cinza-claro);
+    }
+    .info-card p, .info-card .user-data-item { font-size: 0.95em; margin-bottom: 8px; }
+    .info-card .user-data-item strong {
+        color: var(--cinza-escuro);
+        min-width: 80px;
+        display: inline-block;
+    }
+    .info-card .btn {
+        margin-top: 15px;
+        background-color: var(--verde);
+        color: var(--branco);
+        padding: 8px 15px;
+        font-size: 0.9em;
+        text-decoration: none;
+        display: inline-block;
+    }
+    .info-card .btn:hover {
+        background-color: var(--verde-escuro);
+        transform: translateY(-2px);
+    }
+    
+    /* Footer */
+    .site-footer-bottom {
+        background-color: var(--cinza-escuro); color: #b0bec5;
+        padding: 50px 0 30px; font-size: 0.9em; width: 100%;
+        margin-top: 60px;
+    }
+    .footer-content-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 30px; margin-bottom: 30px; width: 90%; max-width: 1140px; margin: 0 auto 30px auto; }
+    .footer-col h4 { font-size: 1.1em; color: var(--branco); font-weight: 600; margin-bottom: 15px; }
+    .footer-col p, .footer-col a { color: #b0bec5; text-decoration: none; margin-bottom: 8px; display: block; font-size: 0.95em; }
+    .footer-col a:hover { color: var(--verde); transform: translateX(2px); transition: transform var(--transition-fast); }
+    .footer-copyright { text-align: center; padding-top: 30px; border-top: 1px solid #4a5c6a; color: #78909c; width: 90%; max-width: 1140px; margin: 0 auto; }
 
-.icon {
-  margin-left: 10px;
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-main {
-  padding: 30px;
-}
-
-.boas-vindas {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  margin-bottom: 20px;
-}
-
-.avatar {
-  font-size: 80px;
-}
-
-.mensagem h1 {
-  font-size: 32px;
-  font-weight: bold;
-}
-
-.mensagem p {
-  font-size: 18px;
-  margin-top: 5px;
-}
-
-.atalhos {
-  display: flex;
-  gap: 50px;
-  margin: 30px 0;
-  
-  width: auto;
-  margin-top:-30px;
- 
-}
-
-/* Adicione este bloco para ajustar o tamanho das imagens dos atalhos */
-.atalhos img {
-  /* Remova ou comente esta linha para evitar conflito */
-  /* height: 80px; */
-  width: auto;
-}
-
-/* Estilos específicos para cada botão de atalho */
-
-.assinatura-atalho img,
-.produtos-atalho img,
-.perguntas-atalho img,
-.pedidos-atalho img {
-  height: 90px;
-  width: auto;
-}
-.dados-atalho img {
-  height: 80px;
-  width: auto;
-  margin-top: 4px;
-}
-
-.painel {
-  display: flex;
-  gap: 30px;
-  flex-wrap: wrap;
-}
-
-.box {
-  background: white;
-  border-radius: 10px;
-  padding: 20px;
-  flex: 1 1 300px;
-  box-shadow: 0 0 10px rgba(0,0,0,0.1);
-}
-
-.box h2 {
-  font-size: 22px;
-  text-decoration: none;
-  color: green;
-}
-
-.excluir {
-  margin-top: 20px;
-  background: #d43131;
-  color: white;
-  padding: 10px 15px;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-footer .rodape {
-  margin-top: 40px;
-  padding: 20px;
-  background: #f6f3b5;
-}
-
-.botao img {
-      height: 200px; /* Reduz o tamanho das imagens */
-      width: auto; /* Mantém a proporção */
-      margin-left:10px;
-
-}
-.box img{
-    height: 50px; /* Reduz o tamanho das imagens */
-      width: auto; 
-}
-.user-info img{
-    height: 50px; /* Reduz o tamanho das imagens */
-      width: auto;
-}
-
-.modal-excluir {
-  display: none;
-  position: fixed;
-  z-index: 9999;
-  left: 0; top: 0; width: 100vw; height: 100vh;
-  background: rgba(0,0,0,0.5);
-  justify-content: center;
-  align-items: center;
-}
-.modal-excluir .modal-content {
-  background: #fff;
-  padding: 30px 25px;
-  border-radius: 10px;
-  box-shadow: 0 0 10px #0002;
-  text-align: center;
-  min-width: 300px;
-}
-.modal-excluir input[type="password"] {
-  width: 90%;
-  padding: 10px;
-  margin: 15px 0;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-  font-size: 1rem;
-  background: #f3f2e7;
-}
-.modal-excluir button {
-  background: #d43131;
-  color: white;
-  padding: 8px 18px;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  margin: 0 5px;
-}
-.modal-excluir .cancelar {
-  background: #aaa;
-}
-.erro-excluir {
-  color: #d43131;
-  margin-bottom: 10px;
-}
-
-.footer-novo {
-  background: #1b2430;
-  color: #fff;
-  padding: 2.5rem 1rem 1rem 1rem;
-  margin-top: 10rem;
-}
-.footer-container {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 2rem;
-  max-width: 1100px;
-  margin: 0 auto;
-}
-.footer-col {
-  min-width: 180px;
-  flex: 1;
-}
-.footer-col h4 {
-  margin-bottom: 1rem;
-  color:rgb(255, 255, 255);
-}
-.footer-col a {
-  color: #cfd8dc;
-  text-decoration: none;
-  display: block;
-  margin-bottom: 0.5rem;
-  font-size: 1rem;
-  transition: color 0.2s;
-}
-.footer-col a:hover {
-  color: #28a060;
-}
-.footer-bottom {
-  text-align: center;
-  color: #aaa;
-  font-size: 0.95rem;
-  margin-top: 2rem;
-  border-top: 1px solid #333;
-  padding-top: 1rem;
-}
-footer p {
- color:rgb(156, 163, 175);
-;
-}
-</style>
+    /* Responsividade */
+    @media (max-width: 992px) {
+        .dashboard-layout { grid-template-columns: 1fr; }
+        .dashboard-sidebar { position: static; }
+        main { padding-top: 80px; }
+    }
+     @media (max-width: 768px) {
+        .header-container { flex-wrap:wrap; justify-content:center; gap:10px; }
+        main { padding-top: 130px; }
+     }
+  </style>
   <script>
-    function abrirModalExcluir() {
-      document.getElementById('modal-excluir').style.display = 'flex';
-    }
-    function fecharModalExcluir() {
-      document.getElementById('modal-excluir').style.display = 'none';
-    }
     function confirmarLogout() {
       return confirm('Tem certeza que deseja encerrar a sessão?');
     }
@@ -336,119 +272,155 @@ footer p {
 </head>
 <body>
     
-  <header>
-    <div class="logo">
-     <a href="loja.php"> <img src="img/logo2.png" alt=""></a>
-  
+<header class="site-header">
+    <div class="header-container">
+        <a href="loja.php"> <img src="img/logo2.png" alt="Logo Circuito Sustentável" class="logo"> </a>
+        <div class="header-actions">
+            <span class="user-info-header">
+                <img src="<?= htmlspecialchars($vendedor['foto_perfil'] ?? 'img/user.png') ?>" alt="Foto de Perfil">
+                <span>Olá, <?= htmlspecialchars(explode(" ", $vendedor['nome'])[0]) ?>! (Vendedor)</span>
+            </span>
+            <form method="post" onsubmit="return confirmarLogout();" style="margin:0;">
+                <button class="btn btn-logout" type="submit" name="logout">Sair</button>
+            </form>
+        </div>
     </div>
-    <div class="search-container">
-      <input type="text" placeholder="Buscar...">
-      <img src="img/lupa.png" alt="pesquisar" class="lupa">
-    </div>
-    <div class="user-info">
-      <span class="user-icon"> <img src="img/user.png" alt=""></span>
-      <p><?= htmlspecialchars($vendedor['nome']) ?></p>
-    </div>
-  </header>
+</header>
 
-  <main>
-    <section class="boas-vindas">
-      <div class="avatar"><img src="img/user.png" alt=""></div>
-      <div class="mensagem">
-        <h1>Olá, <?= htmlspecialchars($vendedor['nome']) ?></h1>
-        <p>Aqui você encontra todas as informações relacionadas à sua conta</p>
-      </div>
-    </section>
-
-    <div class="atalhos">
-      <div class="dados-atalho"><a href="dados.php"><img src="img/dados.png" alt=""></a></div>
-      <div class="assinatura-atalho">
-        <a href="<?php echo ($vendedor['premium'] ? 'c+.php' : 'assinatura_usuario.php'); ?>">
-          <img src="img/assinatura.png" alt="">
-        </a>
-      </div>
-      <div class="perguntas-atalho"><a href="respostas.php"><img src="img/perguntas.png" alt=""></a></div>
-      <div class="pedidos-atalho"><a href="pedidos.php"><img src="img/pedidos.png" alt=""></a></div>
-       <div class="produtos-atalho"><a href="produtos.php"><img src="img/produtos.png" alt=""></a></div>
+<main>
+    <div class="container-page">
+        <div class="dashboard-layout">
+            <aside class="dashboard-sidebar">
+                <div class="profile-card animate-on-scroll">
+                    <img src="<?= htmlspecialchars($vendedor['foto_perfil'] ?? 'img/user.png') ?>" alt="Avatar" class="avatar">
+                    <h2><?= htmlspecialchars($vendedor['nome']) ?></h2>
+                    <p><?= htmlspecialchars($vendedor['email']) ?></p>
+                     <?php if ($estado_vendedor): 
+                        $badgeClass = ''; $badgeIcon = ''; $badgeText = '';
+                        if ($estado_vendedor === 'saudavel') {
+                            $badgeClass = 'saudavel'; $badgeIcon = '🟢'; $badgeText = 'Saudável';
+                        } elseif ($estado_vendedor === 'moderado') {
+                            $badgeClass = 'moderado'; $badgeIcon = '🟠'; $badgeText = 'Moderado';
+                        } elseif ($estado_vendedor === 'critico') {
+                            $badgeClass = 'critico'; $badgeIcon = '🔴'; $badgeText = 'Crítico';
+                        }
+                    ?>
+                    <span class="estado-badge <?= $badgeClass ?>"><?= $badgeIcon ?> Estado: <?= $badgeText ?></span>
+                    <?php endif; ?>
+                </div>
+                <nav class="sidebar-nav animate-on-scroll" style="animation-delay: 0.2s;">
+                    <ul>
+                        <li><a href="produtos.php">
+<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
+  <path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6z" />
+</svg>
+                            Meus Produtos
+                        </a></li>
+                        <li><a href="pedidos.php">
+                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10.5 11.25h3M12 15h.008" />
+  <path stroke-linecap="round" stroke-linejoin="round" d="M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125V6.375c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v.001c0 .621.504 1.125 1.125 1.125z" />
+</svg>
+                            Minhas Compras
+                        </a></li>
+                        <li><a href="respostas.php">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
+</svg>
+</svg>
+                            Perguntas de Clientes
+                        </a></li>
+                        <li><a href="dados.php">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
+                            Meus Dados
+                        </a></li>
+                        <li><a href="<?= ($vendedor['premium'] ? 'c+.php' : 'assinatura_usuario.php') ?>">
+                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM18 15.75l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 18l-1.035.259a3.375 3.375 0 00-2.456 2.456L18 21.75l-.259-1.035a3.375 3.375 0 00-2.456-2.456L14.25 18l1.035-.259a3.375 3.375 0 002.456-2.456L18 15.75z" /></svg>
+                            C+ e Assinatura
+                        </a></li>
+                    </ul>
+                </nav>
+            </aside>
+            <div class="dashboard-main animate-on-scroll" style="animation-delay: 0.1s;">
+                <div class="welcome-message">
+                    <h1>Painel do Vendedor</h1>
+                    <p>Gerencie seus produtos, vendas e interaja com seus clientes.</p>
+                </div>
+                <div class="info-grid">
+                     <div class="info-card">
+                        <h3>👤 Dados do Vendedor</h3>
+                        <div class="user-data-item"><strong>Nome:</strong> <span><?= htmlspecialchars($vendedor['nome']) ?></span></div>
+                        <div class="user-data-item"><strong>Email:</strong> <span><?= htmlspecialchars($vendedor['email']) ?></span></div>
+                        <div class="user-data-item"><strong>CPF:</strong> <span><?= htmlspecialchars($vendedor['cpf']) ?></span></div>
+                        <div class="user-data-item"><strong>Telefone:</strong> <span><?= htmlspecialchars($vendedor['telefone']) ?></span></div>
+                        <a href="dados.php" class="btn">Editar Dados</a>
+                    </div>
+                     <div class="info-card">
+                        <h3>📍 Endereço de Envio</h3>
+                        <?php if ($tem_endereco): ?>
+                        <p>
+                            <?= htmlspecialchars($endereco['rua']) ?>, <?= htmlspecialchars($endereco['numero']) ?><br>
+                            <?= htmlspecialchars($endereco['bairro']) ?>, <?= htmlspecialchars($endereco['cidade']) ?> - <?= htmlspecialchars($endereco['estado']) ?>
+                        </p>
+                        <a href="#" class="btn">Gerenciar Endereços</a>
+                        <?php else: ?>
+                        <p>Você precisa cadastrar seu endereço de envio para começar a vender.</p>
+                        <a href="criar_endereco.php" class="btn">Cadastrar Endereço</a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
+</main>
 
-    <div class="painel">
-      <div class="box">
-        <h2>📍 Endereços</h2>
-        <?php if ($tem_endereco): ?>
-          <div style="margin-bottom:10px;">
-            <strong><?= htmlspecialchars($endereco['rua']) ?>, <?= htmlspecialchars($endereco['numero']) ?></strong>
-            <?php if (!empty($endereco['complemento'])): ?>
-              <br><?= htmlspecialchars($endereco['complemento']) ?>
-            <?php endif; ?>
-            <br><?= htmlspecialchars($endereco['bairro']) ?>, <?= htmlspecialchars($endereco['cidade']) ?> - <?= htmlspecialchars($endereco['estado']) ?>
-            <br>CEP: <?= htmlspecialchars($endereco['cep']) ?>
-          </div>
-          <a href="#">Ver todos</a>
-        <?php else: ?>
-          <a href="criar_endereco.php">
-            <button style="background:#28a060;color:white;padding:10px 15px;border:none;border-radius:5px;cursor:pointer;">Criar Endereço</button>
-          </a>
-        <?php endif; ?>
-      </div>
-
-      <div class="box">
-        <img src="img/user.png" alt="">
-        <h2> Meus dados <a href="dados.php" class="editar">Editar</a></h2>
-        <p>🧍 <?= htmlspecialchars($vendedor['nome']) ?></p>
-        <p>✉️ <?= htmlspecialchars($vendedor['email']) ?></p>
-        <form method="post" style="display:inline;">
-          <button class="excluir" type="button" onclick="abrirModalExcluir()">EXCLUIR CONTA</button>
-        </form>
-        <form method="post" style="display:inline;" onsubmit="return confirmarLogout();">
-          <button class="excluir" type="submit" name="logout" style="background:#aaa;margin-left:10px;">Encerrar Sessão</button>
-        </form>
-      </div>
-    </div>
-  </main>
-
-  <!-- Modal de exclusão -->
-  <div class="modal-excluir" id="modal-excluir">
-    <div class="modal-content">
-      <form method="post">
-        <h3>Confirme sua senha para excluir a conta</h3>
-        <?php if (!empty($erro_excluir)): ?>
-          <div class="erro-excluir"><?= htmlspecialchars($erro_excluir) ?></div>
-        <?php endif; ?>
-        <input type="password" name="senha_excluir" placeholder="Digite sua senha" required>
-        <br>
-        <button type="submit" name="excluir_conta">Excluir</button>
-        <button type="button" class="cancelar" onclick="fecharModalExcluir()">Cancelar</button>
-      </form>
-    </div>
-  </div>
-  <script>
-    
-    document.addEventListener('click', function(e) {
-      var modal = document.getElementById('modal-excluir');
-      if (modal && e.target === modal) fecharModalExcluir();
-    });
-    
-    <?php if (!empty($erro_excluir)): ?>
-      abrirModalExcluir();
-    <?php endif; ?>
-  </script>
-  <footer class="footer-novo">
-    <div class="footer-container">
+<footer class="site-footer-bottom">
+    <div class="container footer-content-grid">
       <div class="footer-col">
         <h4>Circuito Sustentável</h4>
         <p>Oferecendo solução para o meio ambiente e seu bolso.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Navegue</h4>
+        <a href="loja.php">Loja</a>
+        <a href="assinatura_usuario.php">Assinatura</a>
+        <a href="suporte.html">Suporte</a>
       </div>
       <div class="footer-col">
         <h4>Contato</h4>
         <p>📧 circuito_sustentavel@gmail.com</p>
         <p>📞 (85) 992933310</p>
       </div>
-     
     </div>
-    <div class="footer-bottom">
-      &copy; 2025 Circuito Sustentável Inc. Todos os direitos reservados.
+    <div class="footer-copyright">
+      &copy; <?php echo date("Y"); ?> Circuito Sustentável Inc. Todos os direitos reservados.
     </div>
-  </footer>
+</footer>
+
+<script>
+    // Header Scroll Effect
+    const header = document.querySelector('.site-header');
+    if (header) {
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 50) {
+                header.classList.add('scrolled');
+            } else {
+                header.classList.remove('scrolled');
+            }
+        });
+    }
+
+    // Animações de entrada
+    const animatedElements = document.querySelectorAll('.animate-on-scroll');
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('in-view');
+            }
+        });
+    }, { threshold: 0.1 });
+    animatedElements.forEach(el => observer.observe(el));
+</script>
 </body>
 </html>

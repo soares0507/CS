@@ -2,6 +2,16 @@
 session_start();
 include 'conexao.php';
 
+// --- NOVO BLOCO PARA ATUALIZAR STATUS DO PEDIDO ---
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id_pedido']) && isset($_POST['confirmar_recebimento'])) {
+    $id_pedido = intval($_POST['id_pedido']);
+    // Atualiza o status do pedido para 'Concluído'
+    $sql_update = "UPDATE Pedido SET status = 'Concluído' WHERE id_pedido = $id_pedido";
+    $conexao->query($sql_update);
+    header('Location: pedidos.php');
+    exit;
+}
+
 if (!isset($_SESSION['usuario_id']) && !isset($_SESSION['vendedor_id'])) {
     header('Location: login.php');
     exit;
@@ -155,6 +165,17 @@ if (isset($_SESSION['usuario_id'])) {
             .pedido-produto-nome { max-width: 100%; font-size: 1rem; }
         }
     </style>
+    <script>
+        function voltarPainel() {
+            <?php if (isset($_SESSION['usuario_id'])): ?>
+                window.location.href = 'usuario.php';
+            <?php elseif (isset($_SESSION['vendedor_id'])): ?>
+                window.location.href = 'vendedor.php';
+            <?php else: ?>
+                window.location.href = 'login.php';
+            <?php endif; ?>
+        }
+    </script>
 </head>
 <body>
     <header>
@@ -162,7 +183,7 @@ if (isset($_SESSION['usuario_id'])) {
             <a href="loja.php"><img src="img/logo2.png" alt="Logo"></a>
         </div>
         <div style="margin-left:auto;">
-            <button onclick="window.history.back()" style="background: none; border: none; font-size: 2rem; color: #1f804e; cursor: pointer; font-weight: bold;">&#10005;</button>
+            <button onclick="voltarPainel()" style="background: none; border: none; font-size: 2rem; color: #1f804e; cursor: pointer; font-weight: bold;">&#10005;</button>
         </div>
     </header>
     <main>
@@ -208,10 +229,10 @@ if (isset($_SESSION['usuario_id'])) {
                 <div style="margin-top:10px;display:flex;gap:10px;">
                     <form method="post" action="reembolso.php" style="display:inline;">
                         <input type="hidden" name="id_pedido" value="<?= $id_pedido ?>">
-                        <button type="submit" style="background:#eb3b3b;color:#fff;border:none;border-radius:6px;padding:7px 18px;font-weight:bold;cursor:pointer;">Solicitar Reembolso</button>
                     </form>
-                    <form method="post" action="confirmar_recebimento.php" style="display:inline;">
+                    <form method="post" action="pedidos.php" style="display:inline;">
                         <input type="hidden" name="id_pedido" value="<?= $id_pedido ?>">
+                        <input type="hidden" name="confirmar_recebimento" value="1">
                         <button type="submit" style="background:#28a060;color:#fff;border:none;border-radius:6px;padding:7px 18px;font-weight:bold;cursor:pointer;">Confirmar Recebimento</button>
                     </form>
                 </div>

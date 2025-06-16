@@ -249,6 +249,27 @@ if (isset($_SESSION['usuario_id'])) {
         }
     }
 }
+
+// Lógica do cupom
+$cupom_aplicado = false;
+$cupom_erro = '';
+$desconto_cupom = 0;
+$codigo_cupom = '';
+if (isset($_GET['cupom']) && trim($_GET['cupom']) !== '') {
+    $codigo_cupom = $conexao->real_escape_string(trim($_GET['cupom']));
+    $sql_cupom = "SELECT * FROM Cupom WHERE codigo = '$codigo_cupom' AND ativo = 1";
+    $res_cupom = $conexao->query($sql_cupom);
+    if ($res_cupom && $res_cupom->num_rows > 0) {
+        $cupom = $res_cupom->fetch_assoc();
+        $desconto_cupom = floatval($cupom['desconto']);
+        $cupom_aplicado = true;
+        // Aplica desconto percentual
+        $total = $total - ($total * ($desconto_cupom / 100));
+        if ($total < 0) $total = 0;
+    } else {
+        $cupom_erro = 'Cupom inválido ou inativo.';
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -606,6 +627,15 @@ if (isset($_SESSION['usuario_id'])) {
         <?php endif; ?>
         <button class="btn-pagar" onclick="window.location.href='loja.php'">Voltar à Loja</button>
       <?php else: ?>
+        <?php if ($cupom_aplicado): ?>
+          <div class="mensagem" style="color:#145c36;">
+            Cupom <b><?= htmlspecialchars($codigo_cupom) ?></b> aplicado! Desconto de <?= number_format($desconto_cupom,2,',','.') ?>%.
+          </div>
+        <?php elseif ($cupom_erro): ?>
+          <div class="mensagem" style="color:#eb3b3b;">
+            <?= htmlspecialchars($cupom_erro) ?>
+          </div>
+        <?php endif; ?>
         <div class="valor-total">Total: <span style="color:#1f804e;">R$ <?= number_format($total,2,',','.') ?></span></div>
         <?php if ($is_assinatura): ?>
           <div class="produto-unico-box">
@@ -716,6 +746,19 @@ if (isset($_SESSION['usuario_id'])) {
           <?php else: ?>
             <div style="color:#888;">Faça login para informar o endereço de entrega.</div>
           <?php endif; ?>
+
+          <!-- Campo de cupom de desconto abaixo do endereço -->
+          <form method="get" style="margin: 1.2rem 0 0 0; display: flex; gap: 10px; justify-content: center; align-items: center;">
+            <?php
+              // Preservar parâmetros existentes na URL
+              if (isset($_GET['id_produto'])) echo '<input type="hidden" name="id_produto" value="'.htmlspecialchars($_GET['id_produto']).'">';
+              if (isset($_GET['quantidade'])) echo '<input type="hidden" name="quantidade" value="'.htmlspecialchars($_GET['quantidade']).'">';
+              if (isset($_GET['assinatura'])) echo '<input type="hidden" name="assinatura" value="'.htmlspecialchars($_GET['assinatura']).'">';
+            ?>
+            <input type="text" name="cupom" placeholder="Insira o cupom" style="padding:8px 12px; border-radius:8px; border:1.5px solid #28a060; font-size:1rem; background:#f3f2e7; width: 60%;" value="<?= isset($_GET['cupom']) ? htmlspecialchars($_GET['cupom']) : '' ?>">
+            <button type="submit" style="background:#28a060; color:#fff; border:none; border-radius:8px; padding:8px 18px; font-weight:bold; cursor:pointer;">Aplicar</button>
+          </form>
+          <!-- Fim campo cupom -->
         </div>
         <!-- Fim endereço de entrega -->
 

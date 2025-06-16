@@ -27,26 +27,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$nome_produto || !$preco_produto || !$estoque_produto) {
         $erro = "Preencha todos os campos obrigatórios!";
     } else {
-        $imagens_salvas = [];
-        if (!empty($_FILES['imagens']) && isset($_FILES['imagens']['name'][0]) && $_FILES['imagens']['name'][0] != '') {
-            $total_imagens = count($_FILES['imagens']['name']);
-            for ($i = 0; $i < $total_imagens && $i < 6; $i++) {
-                if ($_FILES['imagens']['error'][$i] === UPLOAD_ERR_OK) {
-                    $caminho_temporario = $_FILES['imagens']['tmp_name'][$i];
-                    $extensao = strtolower(pathinfo($_FILES['imagens']['name'][$i], PATHINFO_EXTENSION));
-                    $permitidas = ['jpg','jpeg','png','gif','webp'];
-                    if (!in_array($extensao, $permitidas)) continue;
-                    $nome_arquivo = uniqid('produto_', true) . '.' . $extensao;
-                    $destino = $pasta_upload . $nome_arquivo;
-                    if (move_uploaded_file($caminho_temporario, $destino)) {
-                        $imagens_salvas[] = $url_upload . $nome_arquivo;
-                    }
+        $imagem_path = null;
+        // Upload de imagem (apenas uma, como em rs.php)
+        if (isset($_FILES['imagens']) && isset($_FILES['imagens']['error'][0]) && $_FILES['imagens']['error'][0] === UPLOAD_ERR_OK) {
+            $img_tmp = $_FILES['imagens']['tmp_name'][0];
+            $extensao = strtolower(pathinfo($_FILES['imagens']['name'][0], PATHINFO_EXTENSION));
+            $permitidas = ['jpg','jpeg','png','gif','webp'];
+            if (in_array($extensao, $permitidas)) {
+                $img_name = uniqid('produto_', true) . '.' . $extensao;
+                $img_dest = $pasta_upload . $img_name;
+                if (move_uploaded_file($img_tmp, $img_dest)) {
+                    $imagem_path = $url_upload . $img_name;
                 }
             }
         }
-        $imagens_json = json_encode($imagens_salvas);
+        // Salva como string simples, não JSON
+        $imagens_db = $imagem_path ? $imagem_path : '';
 
-        $sql = "INSERT INTO Produto (nome, descricao, preco, estoque, id_vendedor, imagens) VALUES ('$nome_produto', '$descricao_produto', '$preco_produto', '$estoque_produto', '$id_vendedor', '$imagens_json')";
+        $sql = "INSERT INTO Produto (nome, descricao, preco, estoque, id_vendedor, imagens) VALUES ('$nome_produto', '$descricao_produto', '$preco_produto', '$estoque_produto', '$id_vendedor', '$imagens_db')";
         if ($conexao->query($sql)) {
             $sucesso = "Produto cadastrado com sucesso!";
         } else {
@@ -174,6 +172,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       color: #1f804e;
       margin-bottom: 1rem;
     }
+    #preview-img-produto {
+      display: none;
+      margin-bottom: 0.5rem;
+    }
+    #preview-img-produto img {
+      max-width: 80px;
+      max-height: 80px;
+      border-radius: 8px;
+      margin-top: 5px;
+    }
   </style>
 </head>
 <body>
@@ -207,15 +215,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <label for="descricao">Descrição</label>
         <textarea id="descricao" name="descricao" maxlength="1000"></textarea>
 
-        <label for="imagens">Imagens:</label>
-        <input type="file" id="imagens" name="imagens[]" accept="image/*" multiple>
+        <label for="imagens">Imagem do Produto:</label>
+        <input type="file" id="imagens" name="imagens[]" accept="image/*" onchange="previewImagemProduto(event)">
+        <div id="preview-img-produto"></div>
 
         <div class="botoes">
           <button type="submit" class="botao-acao">Cadastrar</button>
-          
         </div>
       </form>
     </div>
   </main>
+  <script>
+    // Preview da imagem antes do upload (igual ao rs.php)
+    function previewImagemProduto(event) {
+      const input = event.target;
+      const preview = document.getElementById('preview-img-produto');
+      if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          preview.innerHTML = '<img src="' + e.target.result + '" alt="Preview">';
+          preview.style.display = 'block';
+        }
+        reader.readAsDataURL(input.files[0]);
+      } else {
+        preview.innerHTML = '';
+        preview.style.display = 'none';
+      }
+    }
+  </script>
 </body>
 </html>

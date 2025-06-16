@@ -1,3 +1,4 @@
+DROP DATABASE IF EXISTS circuito_sustentavel;
 CREATE DATABASE circuito_sustentavel;
 use circuito_sustentavel;
 CREATE TABLE Cliente (
@@ -176,6 +177,7 @@ CREATE TABLE Cotidiano (
     gas VARCHAR(50),
     carne VARCHAR(50),
     reciclagem VARCHAR(50),
+    estado VARCHAR(50),
     FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente),
     FOREIGN KEY (id_vendedor) REFERENCES Vendedor(id_vendedor)
 );
@@ -210,3 +212,6 @@ CREATE TABLE ADM (
     senha VARCHAR(255) NOT NULL
 );
 
+INSERT INTO cupom (codigo, desconto, ativo) VALUES ("VERDE15",15,1);
+INSERT INTO cupom (codigo, desconto, ativo) VALUES ("ECOCASA10",10,1);
+INSERT INTO cupom (codigo, desconto, ativo) VALUES ("BEMVINDOSAOCS",30,1);
