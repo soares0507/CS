@@ -275,7 +275,8 @@ while ($row = $result->fetch_assoc()) {
             <button class="botao-editar" onclick="location.href='editar.php?id=<?= $produto['id_produto'] ?>'">Editar</button>
             <form method="post" style="margin-top:10px;">
               <input type="hidden" name="id_produto" value="<?= $produto['id_produto'] ?>">
-              <button type="submit" name="excluir_produto" class="botao-editar" style="background:#d43131;">Excluir</button>
+              
+            
             </form>
           </div>
         <?php endforeach; ?>
