@@ -1,217 +1,176 @@
-DROP DATABASE IF EXISTS circuito_sustentavel;
-CREATE DATABASE circuito_sustentavel;
-use circuito_sustentavel;
-CREATE TABLE Cliente (
-    id_cliente INT PRIMARY KEY AUTO_INCREMENT,
-    nome VARCHAR(100),
-    email VARCHAR(100) UNIQUE,
-    cpf VARCHAR(14) UNIQUE,
-    senha VARCHAR(255),
-    premium BOOLEAN DEFAULT FALSE,
-    data_criacao DATETIME DEFAULT CURRENT_TIMESTAMP,
-    telefone VARCHAR(50)
-    
-);
+-- phpMyAdmin SQL Dump
+-- version 5.1.1
+-- https://www.phpmyadmin.net/
+--
+-- Host: localhost
+-- Tempo de geração: 16-Jun-2025 às 13:44
+-- Versão do servidor: 10.4.22-MariaDB
+-- versão do PHP: 8.1.2
 
-CREATE TABLE Vendedor (
-    id_vendedor INT PRIMARY KEY AUTO_INCREMENT,
-    nome VARCHAR(100),
-    email VARCHAR(100) UNIQUE,
-    senha VARCHAR(255),
-    data_criacao DATETIME DEFAULT CURRENT_TIMESTAMP,
-    cpf VARCHAR(50),
-    telefone VARCHAR(50),
-    premium BOOLEAN DEFAULT FALSE
-);
+SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+START TRANSACTION;
+SET time_zone = "+00:00";
 
-CREATE TABLE Produto (
-    id_produto INT PRIMARY KEY AUTO_INCREMENT,
-    nome VARCHAR(100),
-    descricao TEXT,
-    preco DECIMAL(10, 2),
-    estoque INT,
-    id_vendedor INT,
-    imagens TEXT,
-    FOREIGN KEY (id_vendedor) REFERENCES Vendedor(id_vendedor)
-);
 
-CREATE TABLE Carrinho (
-    id_carrinho INT PRIMARY KEY AUTO_INCREMENT,
-    id_cliente INT NULL,
-    id_vendedor INT NULL,
-    FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente) ON DELETE SET NULL,
-    FOREIGN KEY (id_vendedor) REFERENCES Vendedor(id_vendedor) ON DELETE SET NULL
-);
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8mb4 */;
 
-CREATE TABLE Item_Carrinho (
-    id_carrinho INT,
-    id_produto INT,
-    quantidade INT,
-    PRIMARY KEY (id_carrinho, id_produto),
-    FOREIGN KEY (id_carrinho) REFERENCES Carrinho(id_carrinho),
-    FOREIGN KEY (id_produto) REFERENCES Produto(id_produto)
-);
-CREATE TABLE Pedido (
-    id_pedido INT PRIMARY KEY AUTO_INCREMENT,
-    id_cliente INT,
-    id_vendedor INT NULL,
-    data DATETIME DEFAULT CURRENT_TIMESTAMP,
-    codigo_rastreio VARCHAR(100) NULL,
-    status VARCHAR(50),
-    FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente),
-    FOREIGN KEY (id_vendedor) REFERENCES Vendedor(id_vendedor)
-);
+--
+-- Banco de dados: `circuito_sustentavel`
+--
 
-CREATE TABLE Item_Pedido (
-    id_pedido INT,
-    id_produto INT,
-    quantidade INT,
-    preco DECIMAL(10, 2),
-    PRIMARY KEY (id_pedido, id_produto),
-    FOREIGN KEY (id_pedido) REFERENCES Pedido(id_pedido),
-    FOREIGN KEY (id_produto) REFERENCES Produto(id_produto)
-);
+-- --------------------------------------------------------
+-- phpMyAdmin SQL Dump
+-- version 5.1.1
+-- https://www.phpmyadmin.net/
+--
+-- Host: localhost
+-- Tempo de geração: 16-Jun-2025 às 13:44
+-- Versão do servidor: 10.4.22-MariaDB
+-- versão do PHP: 8.1.2
 
-CREATE TABLE Pagamento (
-    id_pagamento INT PRIMARY KEY AUTO_INCREMENT,
-    id_pedido INT,
-    forma_pagamento VARCHAR(50),
-    status VARCHAR(50),
-    FOREIGN KEY (id_pedido) REFERENCES Pedido(id_pedido)
-);
-CREATE TABLE Postagem (
-    id_postagem INT PRIMARY KEY AUTO_INCREMENT,
-    id_cliente INT,
-    id_vendedor INT NULL,
-    titulo VARCHAR(255),
-    conteudo TEXT,
-    imagem VARCHAR(255), -- Novo campo para imagem
-    data DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente),
-    FOREIGN KEY (id_vendedor) REFERENCES Vendedor(id_vendedor)
-);
-CREATE TABLE Curtida (
-    id_curtida INT AUTO_INCREMENT PRIMARY KEY,
-    id_postagem INT NOT NULL,
-    id_cliente INT NULL,
-    id_vendedor INT NULL,
-    data DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY unique_like (id_postagem, id_cliente, id_vendedor),
-    FOREIGN KEY (id_postagem) REFERENCES Postagem(id_postagem),
-    FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente),
-    FOREIGN KEY (id_vendedor) REFERENCES Vendedor(id_vendedor)
-);
+SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+START TRANSACTION;
+SET time_zone = "+00:00";
 
-CREATE TABLE Comentario (
-    id_comentario INT PRIMARY KEY AUTO_INCREMENT,
-    id_postagem INT,
-    id_cliente INT,
-    id_vendedor INT NULL,
-    conteudo TEXT,
-    data DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (id_postagem) REFERENCES Postagem(id_postagem),
-    FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente),
-    FOREIGN KEY (id_vendedor) REFERENCES Vendedor(id_vendedor)
-);
-CREATE TABLE Reembolso (
-    id_reembolso INT PRIMARY KEY AUTO_INCREMENT,
-    id_pedido INT,
-    motivo TEXT,
-    status VARCHAR(50),
-    FOREIGN KEY (id_pedido) REFERENCES Pedido(id_pedido)
-);
-CREATE TABLE Assinatura (
-    id_assinatura INT PRIMARY KEY AUTO_INCREMENT,
-    id_cliente INT,
-    id_vendedor INT NULL,
-    data_inicio DATE,
-    data_fim DATE,
-    ativa BOOLEAN DEFAULT TRUE,
-    FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente),
-    FOREIGN KEY (id_vendedor) REFERENCES Vendedor(id_vendedor)
-);
-CREATE TABLE Moeda (
-    id_moeda INT PRIMARY KEY AUTO_INCREMENT,
-    id_cliente INT,
-    id_vendedor INT NULL,
-    quantidade INT,
-    FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente),
-    FOREIGN KEY (id_vendedor) REFERENCES Vendedor(id_vendedor)
-);
 
-CREATE TABLE Cupom (
-    id_cupom INT PRIMARY KEY AUTO_INCREMENT,
-    codigo VARCHAR(50) UNIQUE,
-    desconto DECIMAL(5, 2),
-    ativo BOOLEAN DEFAULT TRUE
-);
-CREATE TABLE Pergunta (
-    id_pergunta INT PRIMARY KEY AUTO_INCREMENT,
-    id_cliente INT,
-    id_vendedor INT NULL,
-    id_produto INT,
-    texto TEXT,
-    data DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente),
-    FOREIGN KEY (id_produto) REFERENCES Produto(id_produto),
-    FOREIGN KEY (id_vendedor) REFERENCES Vendedor(id_vendedor)
-);
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8mb4 */;
 
-CREATE TABLE Resposta (
-    id_resposta INT PRIMARY KEY AUTO_INCREMENT,
-    id_pergunta INT,
-    id_vendedor INT,
-    texto TEXT,
-    data DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (id_pergunta) REFERENCES Pergunta(id_pergunta),
-    FOREIGN KEY (id_vendedor) REFERENCES Vendedor(id_vendedor)
-);
+--
+-- Banco de dados: `circuito_sustentavel`
+--
 
-CREATE TABLE Cotidiano (
-    id_cotidiano INT PRIMARY KEY AUTO_INCREMENT,
-    id_cliente INT,
-    id_vendedor INT NULL,
-    carro VARCHAR(50),
-    onibus VARCHAR(50),
-    luz VARCHAR(50),
-    gas VARCHAR(50),
-    carne VARCHAR(50),
-    reciclagem VARCHAR(50),
-    estado VARCHAR(50),
-    FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente),
-    FOREIGN KEY (id_vendedor) REFERENCES Vendedor(id_vendedor)
-);
+-- --------------------------------------------------------
 
-CREATE TABLE Endereco (
-    id_endereco INT PRIMARY KEY AUTO_INCREMENT,
-    id_cliente INT NULL,
-    id_vendedor INT NULL,
-    rua VARCHAR(255),
-    numero VARCHAR(20),
-    complemento VARCHAR(100),
-    bairro VARCHAR(100),
-    cidade VARCHAR(100),
-    estado VARCHAR(50),
-    cep VARCHAR(20),
-    FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente),
-    FOREIGN KEY (id_vendedor) REFERENCES Vendedor(id_vendedor)
-);
+--
+-- Estrutura da tabela `Produto`
+--
 
-CREATE TABLE DocumentosVendedor (
-    id_documento INT PRIMARY KEY AUTO_INCREMENT,
-    id_vendedor INT,
-    foto_usuario VARCHAR(255),
-    foto_rg_frente VARCHAR(255),
-    foto_rg_verso VARCHAR(255),
-    FOREIGN KEY (id_vendedor) REFERENCES Vendedor(id_vendedor)
-);
-CREATE TABLE ADM (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    email VARCHAR(100) NOT NULL UNIQUE,
-    cpf VARCHAR(20) NOT NULL UNIQUE,
-    senha VARCHAR(255) NOT NULL
-);
+CREATE TABLE `Produto` (
+  `id_produto` int(11) NOT NULL,
+  `nome` varchar(100) DEFAULT NULL,
+  `descricao` text DEFAULT NULL,
+  `preco` decimal(10,2) DEFAULT NULL,
+  `estoque` int(11) DEFAULT NULL,
+  `id_vendedor` int(11) DEFAULT NULL,
+  `imagens` text DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-INSERT INTO cupom (codigo, desconto, ativo) VALUES ("VERDE15",15,1);
-INSERT INTO cupom (codigo, desconto, ativo) VALUES ("ECOCASA10",10,1);
-INSERT INTO cupom (codigo, desconto, ativo) VALUES ("BEMVINDOSAOCS",30,1);
+--
+-- Extraindo dados da tabela `Produto`
+--
+
+INSERT INTO `Produto` (`id_produto`, `nome`, `descricao`, `preco`, `estoque`, `id_vendedor`, `imagens`) VALUES
+(1, 'RTX 9060 TI', 'A PLACA DE VIDEO MAIS PODEROSA DO MERCADO ATUALMENTE', '80000.00', 4, 1, 'uploads_produtos/ar.jpeg'),
+(2, 'Tubarão Com Tênis', 'Incrivel tubarao com tenis', '550.00', 7, 1, 'uploads_produtos/tralalelo.jpeg'),
+(3, 'Playstation 6 Deluxe Edition', 'SIM! ja temos acesso antecipado ao novo e incrivel ps6', '20000.00', 4, 1, 'uploads_produtos/ps6.jpeg'),
+(4, 'Xbox 720', 'Xbox 720 com acesso exclusivo ao Skate 4', '12000.00', 4, 1, 'uploads_produtos/xbox.webp'),
+(5, 'Nintendo Switch 3 Plus', 'Nintendo switch 3 com os jogos exclusivos de preço base de R$400,00', '40000.00', 1, 1, 'uploads_produtos/nintendo.webp'),
+(6, 'Jogo Eletrônico Almo Souls', 'Jogo no estilo souls', '600.00', 9, 1, 'uploads_produtos/almo.png'),
+(7, 'Iphone 20', 'Novo iphone com a melhor qualidade de câmera do mercad', '75000.00', 8, 1, 'uploads_produtos/iphone.webp'),
+(8, 'Notbook Mais Potente do Mundo', 'Notbook mais futurista do mundo', '86000.00', 6, 1, 'uploads_produtos/not.png');
+
+--
+-- Índices para tabelas despejadas
+--
+
+--
+-- Índices para tabela `Produto`
+--
+ALTER TABLE `Produto`
+  ADD PRIMARY KEY (`id_produto`),
+  ADD KEY `id_vendedor` (`id_vendedor`);
+
+--
+-- AUTO_INCREMENT de tabelas despejadas
+--
+
+--
+-- AUTO_INCREMENT de tabela `Produto`
+--
+ALTER TABLE `Produto`
+  MODIFY `id_produto` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+
+--
+-- Restrições para despejos de tabelas
+--
+
+--
+-- Limitadores para a tabela `Produto`
+--
+ALTER TABLE `Produto`
+  ADD CONSTRAINT `Produto_ibfk_1` FOREIGN KEY (`id_vendedor`) REFERENCES `Vendedor` (`id_vendedor`);
+COMMIT;
+
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+
+--
+-- Estrutura da tabela `Produto`
+--
+
+CREATE TABLE `Produto` (
+  `id_produto` int(11) NOT NULL,
+  `nome` varchar(100) DEFAULT NULL,
+  `descricao` text DEFAULT NULL,
+  `preco` decimal(10,2) DEFAULT NULL,
+  `estoque` int(11) DEFAULT NULL,
+  `id_vendedor` int(11) DEFAULT NULL,
+  `imagens` text DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+--
+-- Extraindo dados da tabela `Produto`
+--
+
+INSERT INTO `Produto` (`id_produto`, `nome`, `descricao`, `preco`, `estoque`, `id_vendedor`, `imagens`) VALUES
+(1, 'RTX 9060 TI', 'A PLACA DE VIDEO MAIS PODEROSA DO MERCADO ATUALMENTE', '80000.00', 4, 1, 'uploads_produtos/ar.jpeg'),
+(2, 'Tubarão Com Tênis', 'Incrivel tubarao com tenis', '550.00', 7, 1, 'uploads_produtos/tralalelo.jpeg'),
+(3, 'Playstation 6 Deluxe Edition', 'SIM! ja temos acesso antecipado ao novo e incrivel ps6', '20000.00', 4, 1, 'uploads_produtos/ps6.jpeg'),
+(4, 'Xbox 720', 'Xbox 720 com acesso exclusivo ao Skate 4', '12000.00', 4, 1, 'uploads_produtos/xbox.webp'),
+(5, 'Nintendo Switch 3 Plus', 'Nintendo switch 3 com os jogos exclusivos de preço base de R$400,00', '40000.00', 1, 1, 'uploads_produtos/nintendo.webp'),
+(6, 'Jogo Eletrônico Almo Souls', 'Jogo no estilo souls', '600.00', 9, 1, 'uploads_produtos/almo.png'),
+(7, 'Iphone 20', 'Novo iphone com a melhor qualidade de câmera do mercad', '75000.00', 8, 1, 'uploads_produtos/iphone.webp'),
+(8, 'Notbook Mais Potente do Mundo', 'Notbook mais futurista do mundo', '86000.00', 6, 1, 'uploads_produtos/not.png');
+
+--
+-- Índices para tabelas despejadas
+--
+
+--
+-- Índices para tabela `Produto`
+--
+ALTER TABLE `Produto`
+  ADD PRIMARY KEY (`id_produto`),
+  ADD KEY `id_vendedor` (`id_vendedor`);
+
+--
+-- AUTO_INCREMENT de tabelas despejadas
+--
+
+--
+-- AUTO_INCREMENT de tabela `Produto`
+--
+ALTER TABLE `Produto`
+  MODIFY `id_produto` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+
+--
+-- Restrições para despejos de tabelas
+--
+
+--
+-- Limitadores para a tabela `Produto`
+--
+ALTER TABLE `Produto`
+  ADD CONSTRAINT `Produto_ibfk_1` FOREIGN KEY (`id_vendedor`) REFERENCES `Vendedor` (`id_vendedor`);
+COMMIT;
+
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
