@@ -65,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['virar_vendedor'])) {
                 }
 
                 // NOVO: Remover curtidas do cliente antes de deletar o cliente
-                $sql_delete_curtida = "DELETE FROM curtida WHERE id_cliente = ?";
+                $sql_delete_curtida = "DELETE FROM Curtida WHERE id_cliente = ?";
                 $stmt_delete_curtida = $conexao->prepare($sql_delete_curtida);
                 $stmt_delete_curtida->bind_param("i", $id_cliente);
                 if (!$stmt_delete_curtida->execute()) {
